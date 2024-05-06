@@ -1,12 +1,12 @@
-'use server'
+"use server";
 import Games from "./components/Games";
-import { loadDeployements } from "./services/front-end/deployements";
+import { loadDeployments } from "./actions/front-end/deployments";
 export default async function Home() {
-  const data = await loadDeployements();
+  const data = await loadDeployments();
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <Games deployements={data} />
-      
+      <Games deployments={data ?? ([] as string[])} />
     </main>
   );
 }

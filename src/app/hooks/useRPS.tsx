@@ -1,23 +1,25 @@
-import { useReadContracts, useWriteContract } from "wagmi";
-import contractabi from "../lib/abi/contractabi.json";
+import { useBlockNumber, useReadContracts, useWriteContract } from "wagmi";
+import contractABI from "../lib/abi/contractabi.json";
+import { useContext, useEffect } from "react";
+import { WalletContext, WalletContextType } from "../context/WalletContext";
+import { useQueryClient } from "@tanstack/react-query";
 
-
-
-//This a facade pattern refactoring for the contract, the functions on the contract are simplified for easy use
-//Since the underlying functions are hooks this facade is in the form of hooks
+//All read and write operations on the contract as hooks;
 const useRPSHooks = (contractAddress: `0x${string}`) => {
   //Our contract info
   const RPSContract = {
     address: contractAddress,
-    abi: contractabi.abi,
+    abi: contractABI.abi,
   };
 
   //Write functions
   const { writeContractAsync } = useWriteContract();
-
+  const { publicClient } = useContext(WalletContext) as WalletContextType;
+  const { data: blockNumber } = useBlockNumber({ watch: true });
+  const queryClient = useQueryClient();
   //
 
-  const j1Timeout = async ()=>{
+  const j1Timeout = async () => {
     let txHash;
     try {
       const hash = await writeContractAsync({
@@ -26,13 +28,12 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
       });
       txHash = hash;
     } catch (error) {
-      console.log("HEY", error);
       return;
     }
     return txHash;
-  }
+  };
 
-  const j2Timeout = async()=> {
+  const j2Timeout = async () => {
     let txHash;
     try {
       const hash = await writeContractAsync({
@@ -41,55 +42,70 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
       });
       txHash = hash;
     } catch (error) {
-      console.log("HEY", error);
       return;
     }
-  }
+    return txHash;
+  };
 
-  const reveal = async () => {
-
+  const reveal = async (move: number, salt: bigint) => {
+    let txHash;
     try {
-      const txHash = await writeContractAsync({
-        address: params.address as `0x${string}`,
-        abi: RPS,
+      const hash = await writeContractAsync({
+        ...RPSContract,
         functionName: "solve",
-        args: [parseInt(move), salt],
+        args: [move, salt],
       });
-      hash = txHash;
+      txHash = hash;
+    } catch (error) {
+      return;
+    }
+    return txHash;
+  };
+
+  const play = async (radio: number, stake: bigint) => {
+    let txHash;
+    try {
+      const hash = await writeContractAsync({
+        ...RPSContract,
+        functionName: "play",
+        args: [radio],
+        value: stake,
+      });
+      txHash = hash;
     } catch (error) {
       return;
     }
 
-  }
+    return txHash;
+  };
 
   // A generic timeout function since anyone can the timeout function
-  // const handleTimeout = async (isCreator: boolean) => {
-  //   let txHash;
-  //   if (isCreator) {
-  //     try {
-  //       const hash = await writeContractAsync({
-  //         ...RPSContract,
-  //         functionName: "j1Timeout",
-  //       });
-  //       txHash = hash;
-  //     } catch (error) {
-  //       console.log("HEY", error);
-  //       return;
-  //     }
-  //   } else {
-  //     try {
-  //       const hash = await writeContractAsync({
-  //         ...RPSContract,
-  //         functionName: "j2Timeout",
-  //       });
-  //       txHash = hash;
-  //     } catch (error) {
-  //       console.log("HEY", error);
-  //       return;
-  //     }
-  //   }
-  // };
-  const { data } = useReadContracts({
+  const handleTimeout = async (isCreator: boolean) => {
+    let txHash;
+    if (isCreator) {
+      try {
+        const hash = await writeContractAsync({
+          ...RPSContract,
+          functionName: "j1Timeout",
+        });
+        txHash = hash;
+      } catch (error) {
+        return;
+      }
+    } else {
+      try {
+        const hash = await writeContractAsync({
+          ...RPSContract,
+          functionName: "j2Timeout",
+        });
+        txHash = hash;
+      } catch (error) {
+        return;
+      }
+    }
+  };
+
+  const { data, queryKey } = useReadContracts({
     contracts: [
       {
         ...RPSContract,
@@ -113,7 +129,7 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
       },
     ],
     query: {
-      refetchInterval: 5000,
+      refetchInterval:1000,
       select: (data) => {
         return {
           j1: data[0].result,
@@ -126,7 +142,11 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
     },
   });
 
-  return { data, writeContractAsync };
+  
+
+  console.log("AA", data);
+
+  return { data, j1Timeout, j2Timeout, play, reveal };
 };
 
 export { useRPSHooks };

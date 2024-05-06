@@ -29,6 +29,8 @@ export type FormState = {
 export default function Create() {
   //
 
+
+  
   const [formState, setFormState] = useState<FormState>({
     radio: 0,
     stake: "",
@@ -42,7 +44,6 @@ export default function Create() {
     pendingTx,
     setPendingTx,
     setIsTxDisabled,
-    setUpdateData,
   } = useContext(TransactionContext) as TransactionContextType;
 
   const handleCommit = async () => {
@@ -104,18 +105,15 @@ export default function Create() {
         value: parseEther(formState.stake),
         bytecode: contractabi.bytecode as `0x${string}`,
       });
-      console.log("TXHASH", txHash);
       hash = txHash;
     } catch (error) {
       setIsTxDisabled(false);
       return;
     }
-    console.log("HASH", hash);
 
     if (!hash) return;
     setIsTxDisabled(false);
     setPendingTx(hash);
-    setUpdateData({ j1: address, j2: formState.target as string});
   };
 
   return (

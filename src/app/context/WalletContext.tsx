@@ -1,21 +1,23 @@
-'use  client'
+"use  client";
 import { NextPage } from "next";
-import { ReactNode, createContext } from "react";
+import { ReactNode, createContext, useEffect, useState } from "react";
 import {
   useAccount,
+  useAccountEffect,
   useBalance,
   usePublicClient,
   useWalletClient,
 } from "wagmi";
 import { Client, PublicClient, WalletClient, http } from "viem";
-import {sepolia} from 'wagmi/chains'
-export type Deployement = {
+import { sepolia } from "wagmi/chains";
+export type Deployment = {
   address: string;
   j1: string;
   j2?: string;
 };
 
 import { GetBalanceData } from "wagmi/query";
+import { usePathname, useRouter } from "next/navigation";
 //Global contexts may be persisted and managed here
 
 export type WalletContextType = {
@@ -23,17 +25,36 @@ export type WalletContextType = {
   client: WalletClient | undefined;
   balance: GetBalanceData | undefined;
   address: `0x${string}` | undefined;
+  isConnected: boolean;
 };
 
 export const WalletContext = createContext<WalletContextType | null>(null);
 
-const WalletProvider: NextPage<{ children: ReactNode }> = ({
-  children,
-}) => {
+const WalletProvider: NextPage<{ children: ReactNode }> = ({ children }) => {
   const publicClient = usePublicClient({ chainId: sepolia.id });
   const { data: client } = useWalletClient();
   const { address } = useAccount();
-const { data: balance } = useBalance({address});
+  const [isConnected, setIsConnected] = useState<boolean>(() => {
+    if (typeof localStorage !== "undefined") {
+      return localStorage.getItem("isConnected") === "true";
+    } else return false;
+  });
+  useAccountEffect({
+    onConnect(data) {
+      if (isConnected !== true) {
+        setIsConnected(true);
+        localStorage.setItem("isConnected", "true");
+      }
+    },
+    onDisconnect() {
+      if (isConnected !== false) {
+        setIsConnected(false);
+        localStorage.setItem("isConnected", "false");
+      }
+    },
+  });
+  console.log("isConnected", isConnected);
+  const { data: balance } = useBalance({ address });
   return (
     <WalletContext.Provider
       value={{
@@ -41,6 +62,7 @@ const { data: balance } = useBalance({address});
         client,
         balance,
         address,
+        isConnected,
       }}
     >
       {children}
