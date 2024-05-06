@@ -10,7 +10,7 @@ import {
 } from "viem";
 import RadioGroup from "../components/RadioGroup";
 import contractabi from "../lib/abi/contractabi.json";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   TransactionContext,
   TransactionContextType,
@@ -20,6 +20,7 @@ import { sepolia } from "viem/chains";
 import { useRPSHooks } from "../hooks/useRPS";
 import { commitValidation } from "../utils/validations";
 import { RPS } from "../lib/abi";
+import { useReconnect } from "wagmi";
 
 export type FormState = {
   radio: number;
@@ -116,6 +117,11 @@ export default function Create() {
     setPendingTx(hash);
   };
 
+  const { reconnect } = useReconnect()
+
+  useEffect(() => {
+    reconnect()
+  }, [])
   return (
     <div className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="flex flex-col">

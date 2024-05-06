@@ -179,6 +179,7 @@ export default function Play({ params }: { params: { address: string } }) {
 
     const salt = BigInt(saltString);
     const hash = await reveal(parseInt(move), salt);
+    if(hash)
     setPendingTx(hash);
     localStorage.setItem("pendingTx", hash as string);
   };
