@@ -1,4 +1,4 @@
-"use server";
+
 import { Alchemy, AssetTransfersCategory, Network, TransactionResponse } from "alchemy-sdk";
 import { PublicClient, Transaction } from "viem";
 
