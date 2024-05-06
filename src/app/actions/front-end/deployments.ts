@@ -55,7 +55,6 @@ export const loadDeployments = async () => {
   //     });
   //   })
   // );
-  console.log("Result", result);
 
   return result;
 };
@@ -65,10 +64,8 @@ export const addDeployment = async (data: { address: string }) => {
   const client = await clientPromise;
   const db = client.db("Bot");
   try {
-    console.log("HEREEE", data);
     const data2 = await db.collection("Deployments").insertOne(data);
   } catch (error) {
-    console.log("ERROR", error);
   }
 };
 

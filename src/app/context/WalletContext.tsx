@@ -53,7 +53,6 @@ const WalletProvider: NextPage<{ children: ReactNode }> = ({ children }) => {
       }
     },
   });
-  console.log("isConnected", isConnected);
   const { data: balance } = useBalance({ address });
   return (
     <WalletContext.Provider

@@ -24,7 +24,6 @@ export default function Games({ deployments }: { deployments: string[] }) {
     if (!deploymentData) return;
     return deploymentData.reduce(
       (filtered: string[], deployment: DeploymentData) => {
-        console.log("deo", deployment);
         if (deployment.j1 === address || deployment.j2 === address)
           filtered.push(deployment.address);
         return filtered;
@@ -32,7 +31,6 @@ export default function Games({ deployments }: { deployments: string[] }) {
       []
     );
   }, [address, deploymentData]);
-  console.log("deployments", filteredDeployments);
 
   useEffect(() => {
     updateDeploymentData();
@@ -74,7 +72,6 @@ export default function Games({ deployments }: { deployments: string[] }) {
     );
     setDeploymentData(data);
   };
-  console.log("deploy", deployments, deploymentData);
   return (
     <div>
       {filteredDeployments &&

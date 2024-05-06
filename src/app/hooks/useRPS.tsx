@@ -144,7 +144,6 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
 
   
 
-  console.log("AA", data);
 
   return { data, j1Timeout, j2Timeout, play, reveal };
 };

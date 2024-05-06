@@ -31,6 +31,9 @@ type GameState = {
 };
 
 export default function Play({ params }: { params: { address: string } }) {
+
+
+
   const {
     data: contractData,
     j1Timeout,
@@ -39,7 +42,7 @@ export default function Play({ params }: { params: { address: string } }) {
     reveal,
   } = useRPSHooks(params.address as `0x${string}`);
 
-  const router = useRouter();
+ 
   const { address, isConnected, publicClient } = useContext(
     WalletContext
   ) as WalletContextType;
@@ -55,16 +58,8 @@ export default function Play({ params }: { params: { address: string } }) {
     isCreator: false,
   } as GameState);
 
-  const config = {
-    apiKey: process.env.NEXT_PUBLIC_ALCHEMY_KEY, // Replace with your API key
-    network: Network.ETH_SEPOLIA, // Replace with your network
-  };
-
-  // Creates an Alchemy object instance with the config to use for making requests
-  const alchemy = new Alchemy(config);
-
+  const router = useRouter();
   const [timeLeft, setTimeLeft] = useState(-1);
-
   const [radio, setRadio] = useState<number>(0);
 
   //Effects
@@ -130,19 +125,11 @@ export default function Play({ params }: { params: { address: string } }) {
   const saltHexKey =
     params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":salt:";
 
-  const loadMove = () => {
-    if (params) {
-      const move = localStorage.getItem(moveKey);
-      if (move?.length) setGameState({ ...gameState, userMove: move });
-    }
-  };
 
   const inspectContract = async (deploymentAddress: `0x${string}`) => {
     const txInternal = await fetchContractInternalTx(
       deploymentAddress,
-      alchemy
     );
-    console.log("txInternal", txInternal);
     //Check if the stake has been paid out, if it's paid out means the game has ended
     if (txInternal.length) {
       if (txInternal.length === 2) {
@@ -154,10 +141,8 @@ export default function Play({ params }: { params: { address: string } }) {
         //Check if it was solved, find the value of c1
         const tx = await fetchContractTx(
           deploymentAddress,
-          alchemy,
           publicClient as PublicClient
         );
-        console.log("Tx", tx);
         if (tx?.length > 2) {
           const { functionName, args } = decodeFunctionData({
             abi: RPS,
