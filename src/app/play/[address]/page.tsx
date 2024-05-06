@@ -31,9 +31,6 @@ type GameState = {
 };
 
 export default function Play({ params }: { params: { address: string } }) {
-
-
-
   const {
     data: contractData,
     j1Timeout,
@@ -42,7 +39,6 @@ export default function Play({ params }: { params: { address: string } }) {
     reveal,
   } = useRPSHooks(params.address as `0x${string}`);
 
- 
   const { address, isConnected, publicClient } = useContext(
     WalletContext
   ) as WalletContextType;
@@ -125,11 +121,8 @@ export default function Play({ params }: { params: { address: string } }) {
   const saltHexKey =
     params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":salt:";
 
-
   const inspectContract = async (deploymentAddress: `0x${string}`) => {
-    const txInternal = await fetchContractInternalTx(
-      deploymentAddress,
-    );
+    const txInternal = await fetchContractInternalTx(deploymentAddress);
     //Check if the stake has been paid out, if it's paid out means the game has ended
     if (txInternal.length) {
       if (txInternal.length === 2) {
@@ -165,9 +158,11 @@ export default function Play({ params }: { params: { address: string } }) {
       return;
     }
     localStorage.setItem(moveKey, radio.toString());
-    const hash = await play(radio, contractData.stake);
-    setPendingTx(hash);
-    localStorage.setItem("pendingTx", hash as string);
+    const txHash = await play(radio, contractData.stake);
+    if (txHash) {
+      setPendingTx(txHash);
+      localStorage.setItem("pendingTx", txHash as string);
+    }
   };
 
   const handleReveal = async () => {
@@ -176,12 +171,13 @@ export default function Play({ params }: { params: { address: string } }) {
     const saltString = localStorage.getItem(saltHexKey);
     if (!move) return;
     if (!saltString) return;
-
+    ``;
     const salt = BigInt(saltString);
-    const hash = await reveal(parseInt(move), salt);
-    if(hash)
-    setPendingTx(hash);
-    localStorage.setItem("pendingTx", hash as string);
+    const txHash = await reveal(parseInt(move), salt);
+    if (txHash) {
+      setPendingTx(txHash);
+      localStorage.setItem("pendingTx", txHash as string);
+    }
   };
 
   const handleTimeout = async () => {
@@ -192,15 +188,18 @@ export default function Play({ params }: { params: { address: string } }) {
     } else {
       txHash = await j2Timeout();
     }
-    setPendingTx(txHash);
+    if(txHash)
+    {
+      setPendingTx(txHash);
     localStorage.setItem("pendingTx", txHash as string);
+  }
   };
 
   return (
     <div>
       {contractData && (
         <div>
-          {timeLeft>0&&<div>{timeLeft}</div>}
+          {timeLeft > 0 && <div>{timeLeft}</div>}
           <div>
             GameState
             <div>
@@ -233,7 +232,7 @@ export default function Play({ params }: { params: { address: string } }) {
               {contractData.c2 ? "J1 Timed Out" : "J2 Timed Out"}
               <div>
                 <button
-                disabled={isTxDisabled}
+                  disabled={isTxDisabled}
                   onClick={() => {
                     handleTimeout();
                   }}
@@ -247,7 +246,7 @@ export default function Play({ params }: { params: { address: string } }) {
             <div>
               {contractData.c2 ? (
                 <button
-                disabled={isTxDisabled}
+                  disabled={isTxDisabled}
                   onClick={() => {
                     handleReveal();
                   }}
