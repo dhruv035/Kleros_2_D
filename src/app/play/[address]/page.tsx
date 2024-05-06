@@ -199,6 +199,7 @@ export default function Play({ params }: { params: { address: string } }) {
     <div>
       {contractData && (
         <div>
+          {timeLeft>0&&<div>{timeLeft}</div>}
           <div>
             GameState
             <div>
