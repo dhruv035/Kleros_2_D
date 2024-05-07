@@ -225,19 +225,19 @@ export default function Play({ params }: { params: { address: string } }) {
   };
   console.log("C1", gameState);
   return (
-    <div>
+    <div className="flex justify-center">
       {contractData && (
         <div>
-          <button
+          <button className="mb-4"
             onClick={() => {
               router.push("/");
             }}
           >
-            Home
+            <u>{"<"}Go Back</u>
           </button>
           {timeLeft > 0 && <div>{timeLeft}</div>}
-          <div>
-            GameState
+          <div className="flex flex-col justify-center">
+            <span className="text-center text-3xl">GameState</span>
             <div>
               {Object.keys(gameState).map((key, index) => {
                 let value = Object.values(gameState)[index];
@@ -253,8 +253,8 @@ export default function Play({ params }: { params: { address: string } }) {
           {gameState.winner !== "" ? (
             //Concluded State
             <div>
-              {gameState.winner.toLocaleLowerCase() ===
-              (address as string).toLocaleLowerCase()
+              {gameState.winner?.toLocaleLowerCase() ===
+              (address as string)?.toLocaleLowerCase()
                 ? "You got the payout"
                 : "You didn't get the payout"}
             </div>
