@@ -23,8 +23,8 @@ import { useRouter } from "next/navigation";
 import { Alchemy, Network } from "alchemy-sdk";
 
 type GameState = {
-  userMove: string;
   c1: string;
+  c2: string;
   winner: string;
   timeout: boolean;
   isCreator: boolean;
@@ -47,8 +47,8 @@ export default function Play({ params }: { params: { address: string } }) {
   ) as TransactionContextType;
 
   const [gameState, setGameState] = useState<GameState>({
-    userMove: "",
     c1: "",
+    c2: "",
     winner: "",
     timeout: false,
     isCreator: false,
@@ -87,10 +87,16 @@ export default function Play({ params }: { params: { address: string } }) {
       interval = setInterval(() => {
         setTimeLeft((_timeLeft) => _timeLeft - 1);
       }, 1000);
-      if (gameState.timeout === true)
-        setGameState({ ...gameState, timeout: false });
+      if (gameState.timeout === true) {
+        const newStruct = { ...gameState, timeout: false };
+        setGameState((prevState) => {
+          return { ...prevState, timeout: false };
+        });
+      }
     } else if (gameState.timeout === false)
-      setGameState({ ...gameState, timeout: true });
+      setGameState((prevState) => {
+        return { ...prevState, timeout: true };
+      });
     return () => {
       clearInterval(interval);
     };
@@ -103,17 +109,35 @@ export default function Play({ params }: { params: { address: string } }) {
       router.push("/");
     } else {
       if (address === contractData.j1) {
+        console.log("HI");
         //Check if current address is the owner
-        setGameState({
-          ...gameState,
-          isCreator: true,
-          c1: localStorage.getItem(moveKey) as string,
+        setGameState((prevState) => {
+          return {
+            ...prevState,
+            isCreator: true,
+            c1: localStorage.getItem(moveKey) as string,
+          };
         });
       } else {
-        setGameState({ ...gameState, isCreator: false });
+        console.log("address", address, contractData.j1);
+        if (contractData.c2)
+          setGameState((prevState) => {
+            return {
+              ...prevState,
+              isCreator: false,
+              c2: Number(contractData.c2).toString(),
+            };
+          });
+        else
+          setGameState((prevState) => {
+            return {
+              ...prevState,
+              isCreator: false,
+            };
+          });
       }
     }
-  }, [address, contractData?.c2]);
+  }, [address, contractData?.c2, contractData?.j1]);
 
   //Constants to fetch move and salt from localStorage
   const moveKey =
@@ -127,9 +151,13 @@ export default function Play({ params }: { params: { address: string } }) {
     if (txInternal.length) {
       if (txInternal.length === 2) {
         //Two internal transactions mean it was tie, otherwise just check the recepient of the single internal transaction
-        setGameState({ ...gameState, winner: "tie" });
+        setGameState((prevState) => {
+          return { ...prevState, winner: "tie" };
+        });
       } else {
-        setGameState({ ...gameState, winner: txInternal[0].to as string });
+        setGameState((prevState) => {
+          return { ...prevState, winner: txInternal[0].to as string };
+        });
 
         //Check if it was solved, find the value of c1
         const tx = await fetchContractTx(
@@ -142,7 +170,9 @@ export default function Play({ params }: { params: { address: string } }) {
             data: tx[2]?.input, //If there is a solve transaction it will always be the 3rd one. We can just filter for a solve transaction as well but this is optimal for the given problem
           });
           if (functionName === "solve") {
-            setGameState({ ...gameState, c1: args[0].toString() });
+            setGameState((prevState) => {
+              return { ...prevState, c1: args[0].toString() };
+            });
           }
         }
       }
@@ -188,31 +218,33 @@ export default function Play({ params }: { params: { address: string } }) {
     } else {
       txHash = await j2Timeout();
     }
-    if(txHash)
-    {
+    if (txHash) {
       setPendingTx(txHash);
-    localStorage.setItem("pendingTx", txHash as string);
-  }
+      localStorage.setItem("pendingTx", txHash as string);
+    }
   };
-
+  console.log("C1", gameState);
   return (
     <div>
       {contractData && (
         <div>
+          <button
+            onClick={() => {
+              router.push("/");
+            }}
+          >
+            Home
+          </button>
           {timeLeft > 0 && <div>{timeLeft}</div>}
           <div>
             GameState
             <div>
-              {Object.keys(contractData).map((key, index) => {
-                let value = Object.values(contractData)[index];
+              {Object.keys(gameState).map((key, index) => {
+                let value = Object.values(gameState)[index];
+                console.log("LHER", key, value);
                 return (
                   <div key={index}>
-                    {key} :{" "}
-                    {typeof value === "string"
-                      ? (value as string)
-                      : key === "stake"
-                      ? formatEther(value as bigint)
-                      : Number(value)}
+                    {key} :{value.toString()}
                   </div>
                 );
               })}
