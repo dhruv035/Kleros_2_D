@@ -104,11 +104,14 @@ export default function Play({ params }: { params: { address: string } }) {
   useEffect(() => {
     if (!address || !contractData) return;
 
-    if (address !== contractData.j1 && address !== contractData.j2) {
+    const addressFormatted = address.toLocaleLowerCase();
+    const j1Formatted = contractData.j1?.toString().toLocaleLowerCase();
+    const j2Formatted = contractData.j2?.toString().toLocaleLowerCase();
+    if (addressFormatted!== j1Formatted && addressFormatted !== j2Formatted) {
       //If current address is changed to one that is not part of the game auto send to home page
       router.push("/");
     } else {
-      if (address === contractData.j1) {
+      if (addressFormatted === j1Formatted) {
         //Check if current address is the owner
         setGameState((prevState) => {
           return {
@@ -118,7 +121,6 @@ export default function Play({ params }: { params: { address: string } }) {
           };
         });
       } else {
-
         if (contractData.c2)
           setGameState((prevState) => {
             return {
@@ -226,16 +228,30 @@ export default function Play({ params }: { params: { address: string } }) {
     <div className="flex justify-center">
       {contractData && (
         <div>
-          <button className="mb-4"
+          <button
+            className="mb-4"
             onClick={() => {
               router.push("/");
             }}
           >
             <u>{"<"}Go Back</u>
           </button>
-          {timeLeft > 0 && <div>{timeLeft}</div>}
+
           <div className="flex flex-col justify-center">
             <span className="text-center text-3xl font-">GameState</span>
+
+            <div className="flex flex-col text-center">
+              Players
+              <span>Player 1:{contractData.j1?.toString()}</span>
+              <span>Player 2:{contractData.j2?.toString()}</span>
+            </div>
+
+            {timeLeft > 0 && (
+              <div className="flex flex-col text-center">
+                <span>Timer</span>
+                {timeLeft}
+              </div>
+            )}
             <div>
               {Object.keys(gameState).map((key, index) => {
                 let value = Object.values(gameState)[index];
@@ -265,6 +281,7 @@ export default function Play({ params }: { params: { address: string } }) {
                   onClick={() => {
                     handleTimeout();
                   }}
+                  className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
                 >
                   Call Timeout
                 </button>
@@ -279,6 +296,7 @@ export default function Play({ params }: { params: { address: string } }) {
                   onClick={() => {
                     handleReveal();
                   }}
+                  className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
                 >
                   Reveal Move
                 </button>
@@ -296,6 +314,7 @@ export default function Play({ params }: { params: { address: string } }) {
                   <RadioGroup radio={radio} setRadio={setRadio} />
                   <button
                     disabled={isTxDisabled}
+                    className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
                     onClick={() => {
                       handlePlay();
                     }}
