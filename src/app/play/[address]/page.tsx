@@ -109,7 +109,6 @@ export default function Play({ params }: { params: { address: string } }) {
       router.push("/");
     } else {
       if (address === contractData.j1) {
-        console.log("HI");
         //Check if current address is the owner
         setGameState((prevState) => {
           return {
@@ -119,7 +118,7 @@ export default function Play({ params }: { params: { address: string } }) {
           };
         });
       } else {
-        console.log("address", address, contractData.j1);
+
         if (contractData.c2)
           setGameState((prevState) => {
             return {
@@ -137,7 +136,7 @@ export default function Play({ params }: { params: { address: string } }) {
           });
       }
     }
-  }, [address, contractData?.c2, contractData?.j1]);
+  }, [address, contractData?.c2]);
 
   //Constants to fetch move and salt from localStorage
   const moveKey =
@@ -164,10 +163,10 @@ export default function Play({ params }: { params: { address: string } }) {
           deploymentAddress,
           publicClient as PublicClient
         );
-        if (tx?.length > 2) {
+        if (tx?.length === 2) {
           const { functionName, args } = decodeFunctionData({
             abi: RPS,
-            data: tx[2]?.input, //If there is a solve transaction it will always be the 3rd one. We can just filter for a solve transaction as well but this is optimal for the given problem
+            data: tx[1]?.input, //If there is a solve transaction it will always be the 2nd one. We can just filter for a solve transaction as well but this is optimal for the given problem
           });
           if (functionName === "solve") {
             setGameState((prevState) => {
@@ -223,7 +222,6 @@ export default function Play({ params }: { params: { address: string } }) {
       localStorage.setItem("pendingTx", txHash as string);
     }
   };
-  console.log("C1", gameState);
   return (
     <div className="flex justify-center">
       {contractData && (
@@ -237,11 +235,10 @@ export default function Play({ params }: { params: { address: string } }) {
           </button>
           {timeLeft > 0 && <div>{timeLeft}</div>}
           <div className="flex flex-col justify-center">
-            <span className="text-center text-3xl">GameState</span>
+            <span className="text-center text-3xl font-">GameState</span>
             <div>
               {Object.keys(gameState).map((key, index) => {
                 let value = Object.values(gameState)[index];
-                console.log("LHER", key, value);
                 return (
                   <div key={index}>
                     {key} :{value.toString()}
