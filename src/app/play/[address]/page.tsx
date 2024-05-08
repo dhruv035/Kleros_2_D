@@ -172,7 +172,7 @@ export default function Play({ params }: { params: { address: string } }) {
           });
           if (functionName === "solve") {
             setGameState((prevState) => {
-              return { ...prevState, c1: args[0].toString() };
+              return { ...prevState, c1: args[0]?.toString() };
             });
           }
         }
@@ -188,7 +188,7 @@ export default function Play({ params }: { params: { address: string } }) {
     if (!contractData || typeof contractData.stake !== "bigint") {
       return;
     }
-    localStorage.setItem(moveKey, radio.toString());
+    localStorage.setItem(moveKey, radio?.toString());
     const txHash = await play(radio, contractData.stake);
     if (txHash) {
       setPendingTx(txHash);
@@ -257,7 +257,7 @@ export default function Play({ params }: { params: { address: string } }) {
                 let value = Object.values(gameState)[index];
                 return (
                   <div key={index}>
-                    {key} :{value.toString()}
+                    {key} :{value?.toString()}
                   </div>
                 );
               })}
