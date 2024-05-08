@@ -59,9 +59,9 @@ export default function Play({ params }: { params: { address: string } }) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState(-1);
   const [radio, setRadio] = useState<number>(0);
-  const [localDisable,setLocalDisable] = useState<boolean>(false);
+  const [localDisable, setLocalDisable] = useState<boolean>(false);
 
-//Constants to fetch move and salt from localStorage
+  //Constants to fetch move and salt from localStorage
   const moveKey =
     params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":move:";
   const saltHexKey =
@@ -131,21 +131,22 @@ export default function Play({ params }: { params: { address: string } }) {
             ...prevState,
             isCreator: true,
             c1: localStorage.getItem(moveKey) as string,
+            c2: contractData.c2 ? Number(contractData.c2).toString() : "",
           };
         });
       } else {
-          setGameState((prevState) => {
-            return { //If address is not the owner, get player move from contract directly, if c2 exists
-              ...prevState,
-              isCreator: false,
-              c2:contractData.c2?Number(contractData.c2).toString():""
-            };
-          });
+        setGameState((prevState) => {
+          return {
+            //If address is not the owner, get player move from contract directly, if c2 exists
+            ...prevState,
+            isCreator: false,
+            c2: contractData.c2 ? Number(contractData.c2).toString() : "",
+          };
+        });
       }
     }
   }, [address, contractData?.c2]);
 
-  
   const inspectContract = async (deploymentAddress: `0x${string}`) => {
     const txInternal = await fetchContractInternalTx(deploymentAddress);
     //Check if the stake has been paid out, if it's paid out means the game has ended
@@ -160,35 +161,34 @@ export default function Play({ params }: { params: { address: string } }) {
           return { ...prevState, winner: txInternal[0].to as string };
         });
 
-        //Check if it was solved, find the value of c1
-        const tx = await fetchContractTx(
-          deploymentAddress,
-          publicClient as PublicClient
-        );
-        if (tx?.length === 2) {
-          const { functionName, args } = decodeFunctionData({
-            abi: contractABI.abi,
-            data: tx[1]?.input, //If there is a solve transaction it will always be the 2nd one. We can just filter for a solve transaction as well but this is optimal for the given problem
+       
+      }
+       //Check if it was solved, find the value of c1
+       const tx = await fetchContractTx(
+        deploymentAddress,
+        publicClient as PublicClient
+      );
+      if (tx?.length === 2) {
+        const { functionName, args } = decodeFunctionData({
+          abi: contractABI.abi,
+          data: tx[1]?.input, //If there is a solve transaction it will always be the 2nd one. We can just filter for a solve transaction as well but this is optimal for the given problem
+        });
+        if (functionName === "solve" && args && args[0]?.toString()) {
+          setGameState((prevState) => {
+            return {
+              ...prevState,
+              c1: args[0]?.toString() ?? "",
+              timeout: false,
+            };
           });
-          if (functionName === "solve" && args && args[0]?.toString()) {
-            setGameState((prevState) => {
-              return {
-                ...prevState,
-                c1: args[0]?.toString() ?? "",
-                timeout: false,                           
-              };
-            });
-          }
         }
       }
     }
   };
 
-  
-
   //Validations here are trivial so I have not refactored them into the validation file
   const handlePlay = async () => {
-    if (radio === 0) { 
+    if (radio === 0) {
       alert("No option Selected");
       return;
     }
@@ -234,9 +234,9 @@ export default function Play({ params }: { params: { address: string } }) {
   return (
     <div className="flex justify-center">
       {contractData && ( //Dont do any UI until contract is loaded
-        <div >
+        <div>
           <button
-          //Back Navigation button
+            //Back Navigation button
             className="mb-4"
             onClick={() => {
               router.push("/");
@@ -246,7 +246,8 @@ export default function Play({ params }: { params: { address: string } }) {
           </button>
 
           <div //All current game related data
-           className="flex flex-col justify-center">
+            className="flex flex-col justify-center"
+          >
             <span className="text-center text-3xl font-">GameState</span>
             <div className="flex flex-col text-center">
               Players
@@ -290,9 +291,9 @@ export default function Play({ params }: { params: { address: string } }) {
               {contractData.c2 ? "J1 Timed Out" : "J2 Timed Out"}
               <div>
                 <button
-                  disabled={isTxDisabled||localDisable}
-                  onClick={async() => {
-                    setLocalDisable(true)
+                  disabled={isTxDisabled || localDisable}
+                  onClick={async () => {
+                    setLocalDisable(true);
                     await handleTimeout();
                     setLocalDisable(false);
                   }}
@@ -306,17 +307,20 @@ export default function Play({ params }: { params: { address: string } }) {
             //Reveal State (Creator)
             <div>
               {contractData.c2 ? (
-                <button
-                  disabled={isTxDisabled||localDisable}
-                  onClick={async() => {
-                    setLocalDisable(true);
-                    await handleReveal();
-                    setLocalDisable(false);
-                  }}
-                  className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
-                >
-                  Reveal Move
-                </button>
+                <div className="flex flex-col items-center">
+                  <div className="text-center text-2xl my-4">Your Move</div>
+                  <button
+                    disabled={isTxDisabled || localDisable}
+                    onClick={async () => {
+                      setLocalDisable(true);
+                      await handleReveal();
+                      setLocalDisable(false);
+                    }}
+                    className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
+                  >
+                    Reveal Move
+                  </button>
+                </div>
               ) : (
                 <div>Wait for the opponent play</div>
               )}
@@ -328,11 +332,12 @@ export default function Play({ params }: { params: { address: string } }) {
                 <div>Wait for the opponent to reveal</div>
               ) : (
                 <div>
+                  <div className="text-center text-2xl my-4">Your Move</div>
                   <RadioGroup radio={radio} setRadio={setRadio} />
                   <button
-                    disabled={isTxDisabled||localDisable}
-                    className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
-                    onClick={async() => {
+                    disabled={isTxDisabled || localDisable}
+                    className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] self-center w-[80px]"
+                    onClick={async () => {
                       setLocalDisable(true);
                       await handlePlay();
                       setLocalDisable(false);

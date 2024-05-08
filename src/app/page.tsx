@@ -5,7 +5,8 @@ export default async function Home() {
   const data = await loadDeployments();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <main className="flex min-h-screen flex-col items-center p-24">
+      <div className="text-4xl h-20">RPSSL</div>
       <Games deployments={data ?? ([] as string[])} />
     </main>
   );
