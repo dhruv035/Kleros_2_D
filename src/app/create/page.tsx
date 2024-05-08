@@ -9,7 +9,7 @@ import {
   parseEther,
 } from "viem";
 import RadioGroup from "../components/RadioGroup";
-import contractabi from "../lib/abi/contractabi.json";
+import contractABI from "../lib/abi/contractabi.json";
 import { useContext, useEffect, useState } from "react";
 import {
   TransactionContext,
@@ -17,9 +17,7 @@ import {
 } from "../context/TransactionContext";
 import { WalletContext, WalletContextType } from "../context/WalletContext";
 import { sepolia } from "viem/chains";
-import { useRPSHooks } from "../hooks/useRPS";
 import { commitValidation } from "../utils/validations";
-import { RPS } from "../lib/abi";
 import { useReconnect } from "wagmi";
 
 export type FormState = {
@@ -100,11 +98,11 @@ export default function Create() {
     try {
       const txHash = await client?.deployContract({
         chain: sepolia,
-        abi: RPS,
+        abi: contractABI.abi,
         account: address,
         args: [c1Hash, formState.target as `0x${string}`],
         value: parseEther(formState.stake),
-        bytecode: contractabi.bytecode as `0x${string}`,
+        bytecode: contractABI.bytecode as `0x${string}`,
       });
       hash = txHash;
     } catch (error) {

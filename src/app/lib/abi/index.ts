@@ -1,1 +1,0 @@
-export {abi as RPS} from "./RPS"

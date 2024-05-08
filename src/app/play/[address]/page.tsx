@@ -1,6 +1,7 @@
 "use client";
 
-import { RPS } from "@/app/lib/abi";
+import contractABI from "../../lib/abi/contractabi.json";
+import { moves } from "@/app/lib/const";
 import RadioGroup from "@/app/components/RadioGroup";
 import {
   TransactionContext,
@@ -82,8 +83,7 @@ export default function Play({ params }: { params: { address: string } }) {
   }, [contractData?.lastAction]);
 
   useEffect(() => {
-    if(gameState.c1!==""&&gameState.c2!=="")
-      return;
+    if (gameState.c1 !== "" && gameState.c2 !== "") return;
     let interval: NodeJS.Timeout;
     if (timeLeft > 0) {
       interval = setInterval(() => {
@@ -141,8 +141,6 @@ export default function Play({ params }: { params: { address: string } }) {
     }
   }, [address, contractData?.c2]);
 
-
-
   //Constants to fetch move and salt from localStorage
   const moveKey =
     params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":move:";
@@ -170,12 +168,16 @@ export default function Play({ params }: { params: { address: string } }) {
         );
         if (tx?.length === 2) {
           const { functionName, args } = decodeFunctionData({
-            abi: RPS,
+            abi: contractABI.abi,
             data: tx[1]?.input, //If there is a solve transaction it will always be the 2nd one. We can just filter for a solve transaction as well but this is optimal for the given problem
           });
-          if (functionName === "solve") {
+          if (functionName === "solve" && args && args[0]?.toString()) {
             setGameState((prevState) => {
-              return { ...prevState, c1: args[0]?.toString(), timeout: false };
+              return {
+                ...prevState,
+                c1: args[0]?.toString() ?? "",
+                timeout: false,                           
+              };
             });
           }
         }
@@ -260,7 +262,10 @@ export default function Play({ params }: { params: { address: string } }) {
                 let value = Object.values(gameState)[index];
                 return (
                   <div key={index}>
-                    {key} :{value?.toString()}
+                    {key} :
+                    {key === "c1" || key === "c2"
+                      ? moves[Number(value) - 1]
+                      : value?.toString()}
                   </div>
                 );
               })}
@@ -272,6 +277,8 @@ export default function Play({ params }: { params: { address: string } }) {
               {gameState.winner?.toLocaleLowerCase() ===
               (address as string)?.toLocaleLowerCase()
                 ? "You got the payout"
+                : gameState.winner === "tie"
+                ? "It was a tie"
                 : "You didn't get the payout"}
             </div>
           ) : gameState.timeout ? (
