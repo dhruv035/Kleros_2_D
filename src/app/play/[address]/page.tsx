@@ -82,13 +82,14 @@ export default function Play({ params }: { params: { address: string } }) {
   }, [contractData?.lastAction]);
 
   useEffect(() => {
+    if(gameState.c1!==""&&gameState.c2!=="")
+      return;
     let interval: NodeJS.Timeout;
     if (timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((_timeLeft) => _timeLeft - 1);
       }, 1000);
       if (gameState.timeout === true) {
-        const newStruct = { ...gameState, timeout: false };
         setGameState((prevState) => {
           return { ...prevState, timeout: false };
         });
@@ -107,7 +108,7 @@ export default function Play({ params }: { params: { address: string } }) {
     const addressFormatted = address.toLocaleLowerCase();
     const j1Formatted = contractData.j1?.toString().toLocaleLowerCase();
     const j2Formatted = contractData.j2?.toString().toLocaleLowerCase();
-    if (addressFormatted!== j1Formatted && addressFormatted !== j2Formatted) {
+    if (addressFormatted !== j1Formatted && addressFormatted !== j2Formatted) {
       //If current address is changed to one that is not part of the game auto send to home page
       router.push("/");
     } else {
@@ -139,6 +140,8 @@ export default function Play({ params }: { params: { address: string } }) {
       }
     }
   }, [address, contractData?.c2]);
+
+
 
   //Constants to fetch move and salt from localStorage
   const moveKey =
@@ -172,7 +175,7 @@ export default function Play({ params }: { params: { address: string } }) {
           });
           if (functionName === "solve") {
             setGameState((prevState) => {
-              return { ...prevState, c1: args[0]?.toString() };
+              return { ...prevState, c1: args[0]?.toString(), timeout: false };
             });
           }
         }
