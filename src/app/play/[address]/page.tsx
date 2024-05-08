@@ -58,6 +58,7 @@ export default function Play({ params }: { params: { address: string } }) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState(-1);
   const [radio, setRadio] = useState<number>(0);
+  const [localDisable,setLocalDisable] = useState<boolean>(false);
 
   //Effects
 
@@ -287,9 +288,11 @@ export default function Play({ params }: { params: { address: string } }) {
               {contractData.c2 ? "J1 Timed Out" : "J2 Timed Out"}
               <div>
                 <button
-                  disabled={isTxDisabled}
-                  onClick={() => {
-                    handleTimeout();
+                  disabled={isTxDisabled||localDisable}
+                  onClick={async() => {
+                    setLocalDisable(true)
+                    await handleTimeout();
+                    setLocalDisable(false);
                   }}
                   className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
                 >
@@ -302,9 +305,11 @@ export default function Play({ params }: { params: { address: string } }) {
             <div>
               {contractData.c2 ? (
                 <button
-                  disabled={isTxDisabled}
-                  onClick={() => {
-                    handleReveal();
+                  disabled={isTxDisabled||localDisable}
+                  onClick={async() => {
+                    setLocalDisable(true);
+                    await handleReveal();
+                    setLocalDisable(false);
                   }}
                   className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
                 >
@@ -323,10 +328,12 @@ export default function Play({ params }: { params: { address: string } }) {
                 <div>
                   <RadioGroup radio={radio} setRadio={setRadio} />
                   <button
-                    disabled={isTxDisabled}
+                    disabled={isTxDisabled||localDisable}
                     className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
-                    onClick={() => {
-                      handlePlay();
+                    onClick={async() => {
+                      setLocalDisable(true);
+                      await handlePlay();
+                      setLocalDisable(false);
                     }}
                   >
                     Play

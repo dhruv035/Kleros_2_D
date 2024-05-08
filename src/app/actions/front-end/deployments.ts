@@ -23,7 +23,7 @@ export const loadDeployments = async () => {
 
   const client = await clientPromise;
   const db = client.db("Bot");
-  const result = (await db.collection("Deployments").find({}).toArray()).map(
+  const result = (await db.collection("Deployments").find({}).sort([['_id', -1]]).toArray()).map(
     (element) => {
       return element.address;
     }

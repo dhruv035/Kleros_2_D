@@ -28,22 +28,18 @@ export type FormState = {
 export default function Create() {
   //
 
-
-  
   const [formState, setFormState] = useState<FormState>({
     radio: 0,
     stake: "",
   } as FormState);
 
+  const [localDisable, setLocalDisable] = useState<boolean>(false);
   const { client, publicClient, balance, address } = useContext(
     WalletContext
   ) as WalletContextType;
-  const {
-    isTxDisabled,
-    pendingTx,
-    setPendingTx,
-    setIsTxDisabled,
-  } = useContext(TransactionContext) as TransactionContextType;
+  const { isTxDisabled, pendingTx, setPendingTx, setIsTxDisabled } = useContext(
+    TransactionContext
+  ) as TransactionContextType;
 
   const handleCommit = async () => {
     if (!balance) {
@@ -63,13 +59,15 @@ export default function Create() {
     );
 
     if (!isValidated) return;
-
-    const signature = await client?.signMessage({
-      account: address,
-      message: Buffer.from(crypto.randomUUID()).toString("base64"),
-    });
-
-    if (!signature) return;
+    let signature;
+    try {
+      signature = await client?.signMessage({
+        account: address,
+        message: Buffer.from(crypto.randomUUID()).toString("base64"),
+      });
+    } catch (error) {
+      return;
+    }
 
     const salt = hexToBigInt(hashMessage(signature));
 
@@ -115,11 +113,11 @@ export default function Create() {
     setPendingTx(hash);
   };
 
-  const { reconnect } = useReconnect()
+  const { reconnect } = useReconnect();
 
   useEffect(() => {
-    reconnect()
-  }, [])
+    reconnect();
+  }, []);
   return (
     <div className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="flex flex-col">
@@ -150,10 +148,12 @@ export default function Create() {
           step={0.001}
         ></input>
         <button
-          disabled={isTxDisabled}
+          disabled={isTxDisabled || localDisable}
           className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
-          onClick={() => {
-            handleCommit();
+          onClick={async () => {
+            setLocalDisable(true);
+            let hash = await handleCommit();
+            setLocalDisable(false);
           }}
         >
           Confirm
