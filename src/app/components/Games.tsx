@@ -91,7 +91,7 @@ export default function Games({ deployments }: { deployments: string[] }) {
 
   console.log("data", data?.settled, data?.ongoing);
   return (
-    <div>
+    <div className="flex flex-col">
       {data && (
         <div>
           {data.ongoing &&
@@ -135,7 +135,7 @@ export default function Games({ deployments }: { deployments: string[] }) {
         </div>
       )}
       <button
-        className="border-2 bg-blue-400 disabled:bg-gray-300 rounded-[10px] w-[200px]"
+        className="border-2 self-center mt-6 bg-blue-400 disabled:bg-gray-300 rounded-[10px] w-[200px]"
         onClick={() => {
           router.push(`/create`);
         }}

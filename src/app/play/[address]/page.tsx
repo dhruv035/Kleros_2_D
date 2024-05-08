@@ -43,7 +43,8 @@ export default function Play({ params }: { params: { address: string } }) {
   const { address, isConnected, publicClient } = useContext(
     WalletContext
   ) as WalletContextType;
-  const { isTxDisabled, setIsTxDisabled, setPendingTx } = useContext(
+
+  const { isTxDisabled, setPendingTx } = useContext(
     TransactionContext
   ) as TransactionContextType;
 
@@ -60,6 +61,12 @@ export default function Play({ params }: { params: { address: string } }) {
   const [radio, setRadio] = useState<number>(0);
   const [localDisable,setLocalDisable] = useState<boolean>(false);
 
+//Constants to fetch move and salt from localStorage
+  const moveKey =
+    params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":move:";
+  const saltHexKey =
+    params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":salt:";
+
   //Effects
 
   useEffect(() => {
@@ -74,6 +81,7 @@ export default function Play({ params }: { params: { address: string } }) {
     }
   }, [params.address, contractData?.stake]);
 
+  //Start the Timer
   useEffect(() => {
     if (!contractData || !contractData.lastAction) return;
     if (Number(contractData.stake) !== 0) {
@@ -83,6 +91,7 @@ export default function Play({ params }: { params: { address: string } }) {
     }
   }, [contractData?.lastAction]);
 
+  //Run the timer
   useEffect(() => {
     if (gameState.c1 !== "" && gameState.c2 !== "") return;
     let interval: NodeJS.Timeout;
@@ -103,6 +112,8 @@ export default function Play({ params }: { params: { address: string } }) {
       clearInterval(interval);
     };
   }, [timeLeft]);
+
+  //Check the creator of the game
   useEffect(() => {
     if (!address || !contractData) return;
 
@@ -114,7 +125,7 @@ export default function Play({ params }: { params: { address: string } }) {
       router.push("/");
     } else {
       if (addressFormatted === j1Formatted) {
-        //Check if current address is the owner
+        //Check if current address is the owner, store move from local storage in c1 if its owner
         setGameState((prevState) => {
           return {
             ...prevState,
@@ -123,31 +134,18 @@ export default function Play({ params }: { params: { address: string } }) {
           };
         });
       } else {
-        if (contractData.c2)
           setGameState((prevState) => {
-            return {
+            return { //If address is not the owner, get player move from contract directly, if c2 exists
               ...prevState,
               isCreator: false,
-              c2: Number(contractData.c2).toString(),
-            };
-          });
-        else
-          setGameState((prevState) => {
-            return {
-              ...prevState,
-              isCreator: false,
+              c2:contractData.c2?Number(contractData.c2).toString():""
             };
           });
       }
     }
   }, [address, contractData?.c2]);
 
-  //Constants to fetch move and salt from localStorage
-  const moveKey =
-    params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":move:";
-  const saltHexKey =
-    params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":salt:";
-
+  
   const inspectContract = async (deploymentAddress: `0x${string}`) => {
     const txInternal = await fetchContractInternalTx(deploymentAddress);
     //Check if the stake has been paid out, if it's paid out means the game has ended
@@ -186,8 +184,11 @@ export default function Play({ params }: { params: { address: string } }) {
     }
   };
 
+  
+
+  //Validations here are trivial so I have not refactored them into the validation file
   const handlePlay = async () => {
-    if (radio === 0) {
+    if (radio === 0) { 
       alert("No option Selected");
       return;
     }
@@ -232,9 +233,10 @@ export default function Play({ params }: { params: { address: string } }) {
   };
   return (
     <div className="flex justify-center">
-      {contractData && (
-        <div>
+      {contractData && ( //Dont do any UI until contract is loaded
+        <div >
           <button
+          //Back Navigation button
             className="mb-4"
             onClick={() => {
               router.push("/");
@@ -243,9 +245,9 @@ export default function Play({ params }: { params: { address: string } }) {
             <u>{"<"}Go Back</u>
           </button>
 
-          <div className="flex flex-col justify-center">
+          <div //All current game related data
+           className="flex flex-col justify-center">
             <span className="text-center text-3xl font-">GameState</span>
-
             <div className="flex flex-col text-center">
               Players
               <span>Player 1:{contractData.j1?.toString()}</span>

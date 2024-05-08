@@ -42,17 +42,13 @@ export default function Create() {
   ) as TransactionContextType;
 
   const handleCommit = async () => {
-    if (!balance) {
-      alert("Cannot Fetch your balance");
-      return;
-    }
     if (client?.chain?.id !== 11155111 || !address || !publicClient) {
       alert("Web3 Provider Error");
       return;
     }
     const isValidated = commitValidation(
       formState.radio,
-      balance.value,
+      balance,
       formState.stake,
       formState.target,
       address as string
@@ -70,15 +66,12 @@ export default function Create() {
     }
 
     const salt = hexToBigInt(hashMessage(signature));
-
     const c1Hash = keccak256(
       encodePacked(["uint8", "uint256"], [formState.radio, salt])
     );
-
     const txNonce = await publicClient.getTransactionCount({
       address: address,
     });
-
     const deployAddress = getContractAddress({
       from: address,
       nonce: BigInt(txNonce),
@@ -116,6 +109,7 @@ export default function Create() {
   const { reconnect } = useReconnect();
 
   useEffect(() => {
+    //Wagmi reconnect wallet
     reconnect();
   }, []);
   return (
@@ -145,14 +139,13 @@ export default function Create() {
           onChange={(e) => {
             setFormState({ ...formState, target: e.currentTarget.value });
           }}
-          step={0.001}
         ></input>
         <button
           disabled={isTxDisabled || localDisable}
           className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
           onClick={async () => {
             setLocalDisable(true);
-            let hash = await handleCommit();
+            await handleCommit();
             setLocalDisable(false);
           }}
         >

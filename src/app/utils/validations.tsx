@@ -1,6 +1,10 @@
 import { formatEther, isAddress, isAddressEqual } from "viem";
-export const commitValidation= (radio:number,value:bigint,stake:string|null,target:string|null,address:string|null)=>{
+export const commitValidation= (radio:number,balance:any,stake:string|null,target:string|null,address:string|null)=>{
 
+  if (!balance) {
+    alert("Cannot Fetch your balance");
+    return;
+  }
     if (!radio) {
         alert("Please select a move");
         return false;
@@ -9,7 +13,7 @@ export const commitValidation= (radio:number,value:bigint,stake:string|null,targ
         alert("Please Enter a stake amount");
         return false;
       }
-      if (parseFloat(formatEther(value)) < parseFloat(stake)) {
+      if (parseFloat(formatEther(balance.value)) < parseFloat(stake)) {
         alert("Your stake amount is higher than your balance");
         return false;
       }
