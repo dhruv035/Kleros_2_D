@@ -93,19 +93,15 @@ export default function Play({ params }: { params: { address: string } }) {
 
   //Run the timer
   useEffect(() => {
-    if (gameState.c1 !== "" && gameState.c2 !== "") return;
     let interval: NodeJS.Timeout;
     if (timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((_timeLeft) => _timeLeft - 1);
       }, 1000);
-      if (gameState.timeout === true) {
         setGameState((prevState) => {
           return { ...prevState, timeout: false };
         });
-      }
-    } else if (gameState.timeout === false)
-      setGameState((prevState) => {
+    } else  setGameState((prevState) => {
         return { ...prevState, timeout: true };
       });
     return () => {
