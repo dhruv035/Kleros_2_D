@@ -1,15 +1,16 @@
 "use client";
 
-import { useContext, useState, useEffect } from "react";
-import { TransactionContext, TransactionContextType } from "../../context/TransactionContext";
+import { useContext, useEffect, useState } from "react";
+import { TransactionContext } from "../../context/TransactionContext";
+import { TransactionContextType } from "../../lib/types";
+import { useAccount, useConnect } from "wagmi";
 import { useRouter } from "next/navigation";
-import { useInspection } from "../../hooks/useInspection";
 import { useRPSState } from "../../hooks/useRPSState";
 import { useRPSWrite } from "../../hooks/useRPSWrite";
-import { useAccount, useConnect } from "wagmi";
-import GameInfo from "@/app/components/GameInfo";
-import GameActions from "@/app/components/GameActions";
-import GameStatus from "@/app/components/GameStatus";
+import { useInspection } from "../../hooks/useInspection";
+import GameInfo from "../../components/GameInfo";
+import GameActions from "../../components/GameActions";
+import GameStatus from "../../components/GameStatus";
 
 export default function Play({ params: { address } }: { params: { address: string } }) {
   const { address: walletAddress, isConnected, connector: activeConnector } = useAccount();

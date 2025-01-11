@@ -2,14 +2,7 @@ import { useBlockNumber, useReadContracts } from "wagmi";
 import contractABI from "../lib/abi/contractabi.json";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-
-export type GameState = {   
-  c1: string;
-  c2: string;
-  isEnded: boolean;
-  timeout: boolean;
-  isCreator: boolean;
-};
+import { GameState } from "../lib/types";
 
 export const useRPSState = (
   contractAddress: `0x${string}`,

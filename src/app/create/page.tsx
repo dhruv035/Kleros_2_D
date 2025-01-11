@@ -11,22 +11,14 @@ import {
 import RadioGroup from "../components/RadioGroup";
 import contractABI from "../lib/abi/contractabi.json";
 import { useContext, useEffect, useState } from "react";
-import {
-  TransactionContext,
-  TransactionContextType,
-} from "../context/TransactionContext";
+import { TransactionContext } from "../context/TransactionContext";
+import { TransactionContextType } from "../lib/types";
 import { sepolia } from "viem/chains";
 import { commitValidation } from "../utils/validations";
 import { useReconnect, useAccount, usePublicClient, useWalletClient, useBalance } from "wagmi";
 import { useRouter } from "next/navigation";
 import { moves } from "../lib/const";
-
-export type FormState = {
-  radio: number;
-  stake: string;
-  target: string | null;
-  savedMove?: string;
-};
+import { FormState } from "../lib/types";
 
 export default function Create() {
   const router = useRouter();

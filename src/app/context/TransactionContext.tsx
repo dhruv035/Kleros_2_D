@@ -1,9 +1,7 @@
 "use client";
 import { NextPage } from "next";
 import {
-  Dispatch,
   ReactNode,
-  SetStateAction,
   createContext,
   useContext,
   useEffect,
@@ -16,26 +14,7 @@ import { waitForTransactionReceipt } from "viem/actions";
 import { useRouter } from "next/navigation";
 import { usePublicClient } from "wagmi";
 import contractABI from "../lib/abi/contractabi.json";
-
-export type TransactionContextType = {
-  isTxDisabled: boolean;
-  pendingTx: `0x${string}` | undefined;
-  setPendingTx: Dispatch<SetStateAction<`0x${string}` | undefined>>;
-  setIsTxDisabled: Dispatch<SetStateAction<boolean>>;
-  savePendingTx: (hash: `0x${string}`, nonce: number, from: `0x${string}`) => void;
-};
-
-export type Deployment = {
-  address: string;
-  j1: string;
-  j2?: string;
-};
-
-export type PendingTxDetails = {
-  hash: string;
-  nonce: number;
-  from: string;
-};
+import { TransactionContextType, PendingTxDetails, Deployment } from "../lib/types";
 
 export const TransactionContext = createContext<TransactionContextType | null>(
   null

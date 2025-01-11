@@ -1,8 +1,4 @@
-type TimerProps = {
-  timeLeft: number;
-  isEnded: boolean;
-  timeout: boolean;
-};
+import { TimerProps } from "../lib/types";
 
 export default function Timer({ timeLeft, isEnded, timeout }: TimerProps) {
   if (timeLeft <= 0 || isEnded) return null;

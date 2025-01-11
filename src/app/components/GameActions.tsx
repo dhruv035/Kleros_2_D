@@ -1,19 +1,7 @@
 import { useState } from "react";
 import RadioGroup from "./RadioGroup";
 import LoadingSpinner from "./LoadingSpinner";
-import { GameState } from "../hooks/useRPSState";
-
-type GameActionsProps = {
-  gameState: GameState;
-  isTxDisabled: boolean;
-  isFetching: boolean;
-  contractData?: {
-    stake?: bigint;
-  };
-  onPlay: (radio: number) => Promise<void>;
-  onReveal: () => Promise<void>;
-  onTimeout: (hasC2: boolean) => Promise<void>;
-};
+import { GameActionsProps } from "../lib/types";
 
 export default function GameActions({
   gameState,

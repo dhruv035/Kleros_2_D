@@ -3,7 +3,9 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useRouter } from "next/navigation";
 import { useContext } from "react";
-import { TransactionContext, TransactionContextType } from "../context/TransactionContext";
+import { useAccount } from "wagmi";
+import { TransactionContext } from "../context/TransactionContext";
+import { TransactionContextType } from "../lib/types";
 
 export default function Navbar() {
   const router = useRouter();

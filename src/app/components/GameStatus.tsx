@@ -1,16 +1,5 @@
-import { GameState } from "../hooks/useRPSState";
+import { GameState, GameStatusProps } from "../lib/types";
 import Timer from "./Timer";
-
-type GameStatusProps = {
-  gameState: GameState;
-  timeLeft: number;
-  isInspecting: boolean;
-  inspectionResult: {
-    winner?: string;
-    isTimeout?: boolean;
-  };
-  walletAddress?: string;
-};
 
 export default function GameStatus({
   gameState,

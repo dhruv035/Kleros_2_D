@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { inspectContract, InspectionResult } from "../services/inspectionService";
+import { inspectContract } from "../services/inspectionService";
 import { usePublicClient } from "wagmi";
+import { InspectionResult } from "../lib/types";
 
 export const useInspection = (address: string | undefined, isGameClosed: boolean) => {
   const [isInspecting, setIsInspecting] = useState(false);

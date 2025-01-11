@@ -1,23 +1,6 @@
 import { formatEther } from "viem";
 import { moves } from "../lib/const";
-
-type GameInfoProps = {
-  address: string;
-  j1?: string;
-  j2?: string;
-  stake?: bigint;
-  walletAddress?: string;
-  gameState: {
-    isCreator: boolean;
-    c1: string;
-    c2: string;
-    isEnded: boolean;
-  };
-  inspectionResult?: {
-    moveRevealed?: boolean;
-    c1?: string;
-  };
-};
+import { GameInfoProps } from "../lib/types";
 
 export default function GameInfo({ 
   address, 

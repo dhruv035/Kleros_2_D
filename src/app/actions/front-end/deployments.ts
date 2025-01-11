@@ -2,12 +2,7 @@
 
 import { cookies } from "next/headers";
 import clientPromise from "../backend/database";
-
-export type Deployment = {
-  address: string;
-  j1: string;
-  j2?: string;
-};
+import { Deployment } from "../../lib/types";
 
 export const loadDeployments = async () => {
   const _cookies = cookies()

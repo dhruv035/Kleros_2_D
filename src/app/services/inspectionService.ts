@@ -1,14 +1,7 @@
 import { PublicClient, decodeFunctionData } from "viem";
 import { fetchContractInternalTx, fetchContractTx } from "../actions/front-end/contract";
 import contractABI from "../lib/abi/contractabi.json";
-
-export type InspectionResult = {
-  isEnded: boolean;
-  winner: string;
-  c1?: string;
-  isTimeout?: boolean;
-  moveRevealed?: boolean;
-};
+import { InspectionResult } from "../lib/types";
 
 export const inspectContract = async (
   deploymentAddress: `0x${string}`,
@@ -98,4 +91,4 @@ export const inspectContract = async (
     console.error('Error inspecting contract:', error);
     return { isEnded: false, winner: "" };
   }
-}; 
+};

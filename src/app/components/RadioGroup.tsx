@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, SyntheticEvent } from "react";
+import { useEffect, SyntheticEvent } from "react";
 type Props = {
   radio: number;
   setRadio: (selection: number) => void;
