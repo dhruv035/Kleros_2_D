@@ -53,14 +53,14 @@ const TransactionProvider = ({ children }: { children: ReactNode }) => {
         if (result.status === "success") {
           if (result.to === null) {
             if (!result.from || !result.contractAddress) return;
-            const updation = await addDeployment({
+            await addDeployment({
               address: result.contractAddress as string,
+            }).then(() => {
+              router.push(("/play/" + result.contractAddress) as string);
             });
-            
-            router.push('/play/'+result.contractAddress as string)
-            
           }
         } else if (result.status === "reverted") {
+          setIsTxDisabled(false);
         }
         setIsTxDisabled(false);
         setPendingTx(undefined);

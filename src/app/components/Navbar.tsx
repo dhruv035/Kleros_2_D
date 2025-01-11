@@ -1,8 +1,8 @@
 "use client";
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useContext } from "react";
+import { useRouter } from "next/navigation";
+import { useContext } from "react";
 import { TransactionContext, TransactionContextType } from "../context/TransactionContext";
 
 export default function Navbar() {

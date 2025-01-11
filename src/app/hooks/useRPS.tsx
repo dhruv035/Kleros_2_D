@@ -14,8 +14,10 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
 
   //Write functions
   const { writeContractAsync } = useWriteContract();
-  const { publicClient } = useContext(WalletContext) as WalletContextType;
-  const { data: blockNumber } = useBlockNumber({ watch: true });
+
+  const { data: blockNumber } = useBlockNumber({ watch: true, query:{
+    refetchInterval:1_000,
+  } });
   const queryClient = useQueryClient();
   //
 
@@ -105,7 +107,7 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
     }
   };
 
-  const { data, queryKey } = useReadContracts({
+  const { data, isFetching, queryKey } = useReadContracts({
     contracts: [
       {
         ...RPSContract,
@@ -129,7 +131,6 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
       },
     ],
     query: {
-      refetchInterval:1000,
       select: (data) => {
         return {
           j1: data[0].result,
@@ -142,10 +143,17 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
     },
   });
 
-  
+  useEffect(() => {
+    // Only invalidate queries if the game is not ended
+    if (data && Number(data.stake) !== 0) {
+      queryClient.invalidateQueries({ queryKey });
+    }
+  }, [blockNumber, data?.stake]);
 
-
-  return { data, j1Timeout, j2Timeout, play, reveal };
+  useEffect(()=>{
+    console.log("FETCHING",isFetching)
+  },[isFetching])
+  return { data,isFetching, j1Timeout, j2Timeout, play, reveal };
 };
 
 export { useRPSHooks };

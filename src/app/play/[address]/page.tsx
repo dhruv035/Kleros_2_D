@@ -1,352 +1,226 @@
 "use client";
 
-import contractABI from "../../lib/abi/contractabi.json";
 import { moves } from "@/app/lib/const";
 import RadioGroup from "@/app/components/RadioGroup";
-import {
-  TransactionContext,
-  TransactionContextType,
-} from "@/app/context/TransactionContext";
 import { WalletContext, WalletContextType } from "@/app/context/WalletContext";
-import { useRPSHooks } from "@/app/hooks/useRPS";
-import { useContext, useEffect, useMemo, useState } from "react";
-import {
-  PublicClient,
-  decodeFunctionData,
-  formatEther,
-  parseEther,
-} from "viem";
-import {
-  fetchContractInternalTx,
-  fetchContractTx,
-} from "@/app/actions/front-end/contract";
+import { useContext, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Alchemy, Network } from "alchemy-sdk";
-
-type GameState = {
-  c1: string;
-  c2: string;
-  winner: string;
-  timeout: boolean;
-  isCreator: boolean;
-};
+import { GameContext, GameContextType } from "@/app/context/GameContext";
+import { TransactionContext, TransactionContextType } from "@/app/context/TransactionContext";
 
 export default function Play({ params }: { params: { address: string } }) {
+  const { isConnected } = useContext(WalletContext) as WalletContextType;
+  const { isTxDisabled } = useContext(TransactionContext) as TransactionContextType;
   const {
-    data: contractData,
-    j1Timeout,
-    j2Timeout,
-    play,
-    reveal,
-  } = useRPSHooks(params.address as `0x${string}`);
-
-  const { address, isConnected, publicClient } = useContext(
-    WalletContext
-  ) as WalletContextType;
-
-  const { isTxDisabled, setPendingTx } = useContext(
-    TransactionContext
-  ) as TransactionContextType;
-
-  const [gameState, setGameState] = useState<GameState>({
-    c1: "",
-    c2: "",
-    winner: "",
-    timeout: false,
-    isCreator: false,
-  } as GameState);
+    gameState,
+    timeLeft,
+    radio,
+    setRadio,
+    handlePlay,
+    handleReveal,
+    handleTimeout,
+    contractData,
+    isFetching,
+  } = useContext(GameContext) as GameContextType;
 
   const router = useRouter();
-  const [timeLeft, setTimeLeft] = useState(-1);
-  const [radio, setRadio] = useState<number>(0);
-  const [localDisable, setLocalDisable] = useState<boolean>(false);
-
-  //Constants to fetch move and salt from localStorage
-  const moveKey =
-    params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":move:";
-  const saltHexKey =
-    params?.address.toLowerCase() + ":" + address?.toLowerCase() + ":salt:";
-
-  //Effects
 
   useEffect(() => {
-    //If wallet is disconnected reroute to home page
     if (!isConnected) router.push("/");
   }, [isConnected]);
 
-  //If contract stake changes,specifically goes to zero, inspect the contract internal transactions
-  useEffect(() => {
-    if (contractData && Number(contractData.stake) === 0) {
-      inspectContract(params.address as `0x${string}`);
+  // Determine if game is in an active state
+  const isGameActive = !gameState.isEnded && !gameState.winner;
+
+  // Format address for display
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Get game state message
+  const getGameStateMessage = () => {
+    if (isFetching) return "Loading game state...";
+    if (gameState.winner) {
+      return gameState.winner === "tie"
+        ? "Game ended in a tie!"
+        : `Winner: ${formatAddress(gameState.winner)}`;
     }
-  }, [params.address, contractData?.stake]);
-
-  //Start the Timer
-  useEffect(() => {
-    if (!contractData || !contractData.lastAction) return;
-    if (Number(contractData.stake) !== 0) {
-      setTimeLeft(
-        Number(contractData.lastAction) + 300 - Math.floor(Date.now() / 1000)
-      );
-    }
-  }, [contractData?.lastAction]);
-
-  //Run the timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((_timeLeft) => _timeLeft - 1);
-      }, 1000);
-        setGameState((prevState) => {
-          return { ...prevState, timeout: false };
-        });
-    } else  setGameState((prevState) => {
-        return { ...prevState, timeout: true };
-      });
-    return () => {
-      clearInterval(interval);
-    };
-  }, [timeLeft]);
-
-  //Check the creator of the game
-  useEffect(() => {
-    if (!address || !contractData) return;
-
-    const addressFormatted = address.toLocaleLowerCase();
-    const j1Formatted = contractData.j1?.toString().toLocaleLowerCase();
-    const j2Formatted = contractData.j2?.toString().toLocaleLowerCase();
-    if (addressFormatted !== j1Formatted && addressFormatted !== j2Formatted) {
-      //If current address is changed to one that is not part of the game auto send to home page
-      router.push("/");
+    if (gameState.isEnded) return "Game has ended";
+    if (!contractData?.j2) return "Waiting for Player 2 to join...";
+    if (gameState.isCreator) {
+      if (!gameState.c2) return "Waiting for Player 2 to play...";
+      if (gameState.c1 && gameState.c2) return "Your turn to reveal!";
+      return "Player 2 has played. Your turn to play!";
     } else {
-      if (addressFormatted === j1Formatted) {
-        //Check if current address is the owner, store move from local storage in c1 if its owner
-        setGameState((prevState) => {
-          return {
-            ...prevState,
-            isCreator: true,
-            c1: localStorage.getItem(moveKey) as string,
-            c2: contractData.c2 ? Number(contractData.c2).toString() : "",
-          };
-        });
-      } else {
-        setGameState((prevState) => {
-          return {
-            //If address is not the owner, get player move from contract directly, if c2 exists
-            ...prevState,
-            isCreator: false,
-            c2: contractData.c2 ? Number(contractData.c2).toString() : "",
-          };
-        });
-      }
-    }
-  }, [address, contractData?.c2]);
-
-  const inspectContract = async (deploymentAddress: `0x${string}`) => {
-    const txInternal = await fetchContractInternalTx(deploymentAddress);
-    //Check if the stake has been paid out, if it's paid out means the game has ended
-    if (txInternal.length) {
-      if (txInternal.length === 2) {
-        //Two internal transactions mean it was tie, otherwise just check the recepient of the single internal transaction
-        setGameState((prevState) => {
-          return { ...prevState, winner: "tie" };
-        });
-      } else {
-        setGameState((prevState) => {
-          return { ...prevState, winner: txInternal[0].to as string };
-        });
-
-       
-      }
-       //Check if it was solved, find the value of c1
-       const tx = await fetchContractTx(
-        deploymentAddress,
-        publicClient as PublicClient
-      );
-      if (tx?.length === 2) {
-        const { functionName, args } = decodeFunctionData({
-          abi: contractABI.abi,
-          data: tx[1]?.input, //If there is a solve transaction it will always be the 2nd one. We can just filter for a solve transaction as well but this is optimal for the given problem
-        });
-        if (functionName === "solve" && args && args[0]?.toString()) {
-          setGameState((prevState) => {
-            return {
-              ...prevState,
-              c1: args[0]?.toString() ?? "",
-              timeout: false,
-            };
-          });
-        }
-      }
+      if (gameState.c2) return "Waiting for Player 1 to reveal...";
+      return "Your turn to play!";
     }
   };
 
-  //Validations here are trivial so I have not refactored them into the validation file
-  const handlePlay = async () => {
-    if (radio === 0) {
-      alert("No option Selected");
-      return;
-    }
-    if (!contractData || typeof contractData.stake !== "bigint") {
-      return;
-    }
-    localStorage.setItem(moveKey, radio?.toString());
-    const txHash = await play(radio, contractData.stake);
-    if (txHash) {
-      setPendingTx(txHash);
-      localStorage.setItem("pendingTx", txHash as string);
-    }
-  };
-
-  const handleReveal = async () => {
-    if (!params) return;
-    const move = localStorage.getItem(moveKey);
-    const saltString = localStorage.getItem(saltHexKey);
-    if (!move) return;
-    if (!saltString) return;
-    ``;
-    const salt = BigInt(saltString);
-    const txHash = await reveal(parseInt(move), salt);
-    if (txHash) {
-      setPendingTx(txHash);
-      localStorage.setItem("pendingTx", txHash as string);
-    }
-  };
-
-  const handleTimeout = async () => {
-    if (!params) return;
-    let txHash;
-    if (contractData?.c2) {
-      txHash = await j1Timeout();
-    } else {
-      txHash = await j2Timeout();
-    }
-    if (txHash) {
-      setPendingTx(txHash);
-      localStorage.setItem("pendingTx", txHash as string);
-    }
-  };
-  return (
-    <div className="flex justify-center">
-      {contractData && ( //Dont do any UI until contract is loaded
-        <div>
+  if (isFetching) {
+    return (
+      <div className="flex flex-col items-center w-full max-w-2xl mx-auto p-4">
+        <div className="w-full flex justify-start mb-6">
           <button
-            //Back Navigation button
-            className="mb-4"
-            onClick={() => {
-              router.push("/");
-            }}
+            onClick={() => router.push("/")}
+            className="text-blue-500 hover:text-blue-700"
           >
-            <u>{"<"}Go Back</u>
+            <u>{"<"} Go Back</u>
           </button>
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-2xl font-semibold">Loading game state...</div>
+          <div className="animate-pulse bg-gray-200 rounded-lg w-full max-w-md h-48"></div>
+        </div>
+      </div>
+    );
+  }
 
-          <div //All current game related data
-            className="flex flex-col justify-center"
-          >
-            <span className="text-center text-3xl font-">GameState</span>
-            <div className="flex flex-col text-center">
-              Players
-              <span>Player 1:{contractData.j1?.toString()}</span>
-              <span>Player 2:{contractData.j2?.toString()}</span>
+  return (
+    <div className="flex flex-col items-center w-full max-w-2xl mx-auto p-4">
+      <div className="w-full flex justify-start mb-6">
+        <button
+          onClick={() => router.push("/")}
+          className="text-blue-500 hover:text-blue-700"
+        >
+          <u>{"<"} Go Back</u>
+        </button>
+      </div>
+
+      <div className="w-full flex flex-col items-center gap-6">
+        {/* Game Status */}
+        <div className="text-2xl font-semibold text-center">
+          {getGameStateMessage()}
+        </div>
+
+        {/* Game Info */}
+        <div className="w-full max-w-md bg-gray-50 rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="text-gray-600">Game Contract:</div>
+            <div className="font-medium">{formatAddress(params.address)}</div>
+            
+            <div className="text-gray-600">Player 1:</div>
+            <div className="font-medium">
+              {contractData?.j1 ? formatAddress(contractData.j1.toString()) : "..."}
+              {gameState.isCreator && " (You)"}
+            </div>
+            
+            <div className="text-gray-600">Player 2:</div>
+            <div className="font-medium">
+              {contractData?.j2 ? formatAddress(contractData.j2.toString()) : "..."}
+              {!gameState.isCreator && " (You)"}
             </div>
 
-            {timeLeft > 0 && (
-              <div className="flex flex-col text-center">
-                <span>Timer</span>
-                {timeLeft}
-              </div>
+            <div className="text-gray-600">Stake:</div>
+            <div className="font-medium">
+              {contractData?.stake ? 
+                `${BigInt(contractData.stake.toString().padStart(19, '0').slice(0, -18)).toString()}.${contractData.stake.toString().padStart(19, '0').slice(-18).replace(/0+$/, '')} ETH` 
+                : "..."
+              }
+            </div>
+
+            {gameState.c2 && (
+              <>
+                <div className="text-gray-600">Player 2 Move:</div>
+                <div className="font-medium">{moves[Number(gameState.c2) - 1]}</div>
+              </>
             )}
-            <div>
-              {Object.keys(gameState).map((key, index) => {
-                let value = Object.values(gameState)[index];
-                return (
-                  <div key={index}>
-                    {key} :
-                    {key === "c1" || key === "c2"
-                      ? moves[Number(value) - 1]
-                      : value?.toString()}
+
+            {/* Show player 1's move if they are the creator and have played */}
+            {gameState.isCreator && gameState.c1 && !gameState.winner && (
+              <>
+                <div className="text-gray-600">Your Move:</div>
+                <div className="font-medium">{moves[Number(gameState.c1) - 1]}</div>
+              </>
+            )}
+
+            {gameState.c1 && gameState.winner && (
+              <>
+                <div className="text-gray-600">Player 1 Move:</div>
+                <div className="font-medium">{moves[Number(gameState.c1) - 1]}</div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Timer - Only show if game is active */}
+        {isGameActive && timeLeft > 0 && (
+          <div className="text-lg">
+            Time remaining: <span className="font-medium">{timeLeft}s</span>
+          </div>
+        )}
+
+        {/* Timeout Warning - Only show if game is active */}
+        {isGameActive && gameState.timeout && (
+          <div className="text-red-500 font-medium">Game has timed out!</div>
+        )}
+
+        {/* Game Actions - Only show if game is active and not fetching */}
+        {isGameActive && !isFetching && (
+          <div className="flex flex-col items-center gap-6 w-full max-w-md">
+            {/* Show options when it's player's turn to play */}
+            {(gameState.isCreator && !gameState.c1 && gameState.c2) || 
+             (!gameState.isCreator && !gameState.c2) ? (
+              <>
+                <div className="text-lg font-medium text-center">
+                  Choose your move:
+                </div>
+                <RadioGroup radio={radio} setRadio={setRadio} />
+              </>
+            ) : null}
+
+            <div className="flex flex-col items-center gap-4 w-full">
+              {gameState.isCreator ? (
+                gameState.c2 ? (
+                  !gameState.c1 ? (
+                    <button
+                      onClick={() => handlePlay()}
+                      disabled={isTxDisabled}
+                      className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px]"
+                    >
+                      {isTxDisabled ? "Processing..." : "Play Move"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleReveal}
+                      disabled={isTxDisabled}
+                      className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px]"
+                    >
+                      {isTxDisabled ? "Processing..." : "Reveal Move"}
+                    </button>
+                  )
+                ) : (
+                  <div className="text-gray-600 font-medium text-center">
+                    Waiting for Player 2 to play...
                   </div>
-                );
-              })}
+                )
+              ) : !gameState.c2 ? (
+                <button
+                  onClick={() => handlePlay()}
+                  disabled={isTxDisabled}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px]"
+                >
+                  {isTxDisabled ? "Processing..." : "Play Move"}
+                </button>
+              ) : (
+                <div className="text-gray-600 font-medium text-center">
+                  Waiting for Player 1 to reveal...
+                </div>
+              )}
+
+              {gameState.timeout && (
+                <button
+                  onClick={handleTimeout}
+                  disabled={isTxDisabled}
+                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px] mt-4"
+                >
+                  {isTxDisabled ? "Processing..." : "Claim Timeout"}
+                </button>
+              )}
             </div>
           </div>
-          {gameState.winner !== "" ? (
-            //Concluded State
-            <div>
-              {gameState.winner?.toLocaleLowerCase() ===
-              (address as string)?.toLocaleLowerCase()
-                ? "You got the payout"
-                : gameState.winner === "tie"
-                ? "It was a tie"
-                : "You didn't get the payout"}
-            </div>
-          ) : gameState.timeout ? (
-            //Timed out State
-            <div>
-              {contractData.c2 ? "J1 Timed Out" : "J2 Timed Out"}
-              <div>
-                <button
-                  disabled={isTxDisabled || localDisable}
-                  onClick={async () => {
-                    setLocalDisable(true);
-                    await handleTimeout();
-                    setLocalDisable(false);
-                  }}
-                  className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
-                >
-                  Call Timeout
-                </button>
-              </div>
-            </div>
-          ) : gameState.isCreator ? (
-            //Reveal State (Creator)
-            <div>
-              {contractData.c2 ? (
-                <div className="flex flex-col items-center">
-                  <div className="text-center text-2xl my-4">Your Move</div>
-                  <button
-                    disabled={isTxDisabled || localDisable}
-                    onClick={async () => {
-                      setLocalDisable(true);
-                      await handleReveal();
-                      setLocalDisable(false);
-                    }}
-                    className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] w-[80px]"
-                  >
-                    Reveal Move
-                  </button>
-                </div>
-              ) : (
-                <div>Wait for the opponent play</div>
-              )}
-            </div>
-          ) : (
-            //Play move State (Player 2)
-            <div>
-              {contractData.c2 ? (
-                <div>Wait for the opponent to reveal</div>
-              ) : (
-                <div>
-                  <div className="text-center text-2xl my-4">Your Move</div>
-                  <RadioGroup radio={radio} setRadio={setRadio} />
-                  <button
-                    disabled={isTxDisabled || localDisable}
-                    className="border-2 mt-4 bg-amber-300 disabled:bg-gray-300 rounded-[10px] self-center w-[80px]"
-                    onClick={async () => {
-                      setLocalDisable(true);
-                      await handlePlay();
-                      setLocalDisable(false);
-                    }}
-                  >
-                    Play
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
