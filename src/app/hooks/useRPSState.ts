@@ -144,25 +144,6 @@ export const useRPSState = (
     return () => clearInterval(interval);
   }, [contractData?.lastAction, contractData?.isGameClosed, blockNumber]);
 
-  // Remove the old timer effect since we've integrated it above
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((_timeLeft) => {
-          const newTimeLeft = _timeLeft - 1;
-          if (newTimeLeft <= 0) {
-            setGameState(prevState => ({
-              ...prevState,
-              timeout: true
-            }));
-          }
-          return newTimeLeft;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [timeLeft]);
 
   return {
     gameState,
