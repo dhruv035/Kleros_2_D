@@ -15,6 +15,7 @@ import { addDeployment } from "../actions/front-end/deployments";
 import { waitForTransactionReceipt } from "viem/actions";
 import { useRouter } from "next/navigation";
 import { usePublicClient } from "wagmi";
+import contractABI from "../lib/abi/contractabi.json";
 
 export type TransactionContextType = {
   isTxDisabled: boolean;
@@ -74,13 +75,22 @@ const TransactionProvider = ({ children }: { children: ReactNode }) => {
           });
 
           if (result.status === "success") {
-            if (result.to === null) {
-              if (!result.from || !result.contractAddress) return;
-              await addDeployment({
-                address: result.contractAddress as string,
-              }).then(() => {
+            if (result.to === null && result.contractAddress) {
+              // Verify this is our RPS contract by checking if it has the expected functions
+              try {
+                const j1 = await publicClient.readContract({
+                  address: result.contractAddress as `0x${string}`,
+                  abi: contractABI.abi,
+                  functionName: "j1",
+                });
+                // If we can read j1, it's our contract
+                await addDeployment({
+                  address: result.contractAddress as string,
+                });
                 router.push(("/play/" + result.contractAddress) as string);
-              });
+              } catch (error) {
+                console.error('Not our contract:', error);
+              }
             }
           } else if (result.status === "reverted") {
             setIsTxDisabled(false);
