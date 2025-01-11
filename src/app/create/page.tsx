@@ -194,7 +194,7 @@ export default function Create() {
 
               <div>
                 <label className="block text-lg font-medium mb-2">
-                  Opponent's Address:
+                  Opponent&#39;s Address:
                 </label>
                 <input
                   type="text"

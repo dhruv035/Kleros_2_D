@@ -132,12 +132,14 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
     ],
     query: {
       select: (data) => {
+        const isGameClosed = Number(data[4].result) === 0;
         return {
           j1: data[0].result,
           j2: data[1].result,
           lastAction: data[2].result,
           c2: data[3].result,
           stake: data[4].result,
+          isGameClosed,
         };
       },
     },
@@ -145,15 +147,12 @@ const useRPSHooks = (contractAddress: `0x${string}`) => {
 
   useEffect(() => {
     // Only invalidate queries if the game is not ended
-    if (data && Number(data.stake) !== 0) {
+    if (data && !data.isGameClosed) {
       queryClient.invalidateQueries({ queryKey });
     }
-  }, [blockNumber, data?.stake]);
+  }, [blockNumber, data?.isGameClosed]);
 
-  useEffect(()=>{
-    console.log("FETCHING",isFetching)
-  },[isFetching])
-  return { data,isFetching, j1Timeout, j2Timeout, play, reveal };
+  return { data, isFetching, j1Timeout, j2Timeout, play, reveal };
 };
 
 export { useRPSHooks };

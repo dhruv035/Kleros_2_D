@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { WalletContext, WalletContextType } from "../context/WalletContext";
-import { Deployment } from "../context/TransactionContext";
 import contractABI from "../lib/abi/contractabi.json";
+import { loadDeployments } from "../actions/front-end/deployments";
 
 type DeploymentData = {
   address: string;
@@ -12,26 +12,28 @@ type DeploymentData = {
   j2: string;
   stake?: number;
 };
-export default function Games({ deployments }: { deployments: string[] }) {
-  const router = useRouter();
-  const [deploymentData, setDeploymentData] = useState<
-    DeploymentData[] | null
-  >();
-  const { address, publicClient } = useContext(
-    WalletContext
-  ) as WalletContextType;
 
-  const filteredDeployments = useMemo(() => {
-    if (!deploymentData) return;
-    return deploymentData.reduce(
-      (filtered: string[], deployment: DeploymentData) => {
-        if (deployment.j1 === address || deployment.j2 === address)
-          filtered.push(deployment.address);
-        return filtered;
-      },
-      []
-    );
-  }, [address, deploymentData]);
+export default function Games({ initialDeployments }: { initialDeployments: string[] }) {
+  const router = useRouter();
+  const [deployments, setDeployments] = useState<string[]>(initialDeployments);
+  const [deploymentData, setDeploymentData] = useState<DeploymentData[] | null>();
+  const { address, publicClient } = useContext(WalletContext) as WalletContextType;
+
+  const refreshDeployments = useCallback(async () => {
+    const data = await loadDeployments();
+    setDeployments(data ?? []);
+  }, []);
+
+  useEffect(() => {
+    // Refresh deployments when component mounts or when user navigates back
+    const handleFocus = () => {
+      refreshDeployments();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshDeployments]);
 
   const data = useMemo(() => {
     if (!deploymentData || !address) return;
@@ -44,11 +46,11 @@ export default function Games({ deployments }: { deployments: string[] }) {
     });
     return { settled, ongoing };
   }, [address, deploymentData]);
+
   useEffect(() => {
     updateDeploymentData();
   }, [deployments]);
 
-  //Get players for the deployement addresses
   const updateDeploymentData = async () => {
     if (!publicClient) return;
 
@@ -89,53 +91,84 @@ export default function Games({ deployments }: { deployments: string[] }) {
     setDeploymentData(data);
   };
 
-  console.log("data", data?.settled, data?.ongoing);
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const formatStake = (stake: number) => {
+    return `${stake.toString().padStart(19, '0').slice(0, -18)}.${stake.toString().padStart(19, '0').slice(-18).replace(/0+$/, '')} ETH`;
+  };
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col max-w-2xl mx-auto w-full">
       {data && (
-        <div>
-          {data.ongoing &&
-            data.ongoing.length > 0 && ( //List existing Games if in selection stage and previous deployments exists
-              <div>
-                <p>Ongoing Games </p>
-                {data.ongoing.map((deployment: any, index: any) => (
-                  <div className="flex flex-row my-2 " key={index}>
-                    <p>{deployment}</p>
-                    <button
-                      className="outline-2 rounded-[10px] bg-blue-300 w-[100px] ml-4 disabled:bg-gray-300"
-                      onClick={() => {
-                        router.push(`/play/${deployment}`);
-                      }}
+        <div className="space-y-8">
+          {data.ongoing && data.ongoing.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Ongoing Games</h2>
+              <div className="space-y-3">
+                {data.ongoing.map((deployment: any, index: any) => {
+                  const game = deploymentData?.find(d => d.address === deployment);
+                  return (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      Select
-                    </button>
-                  </div>
-                ))}
+                      <div className="space-y-1">
+                        <p className="font-medium text-gray-700">{formatAddress(deployment)}</p>
+                        {game?.stake !== undefined && (
+                          <p className="text-sm text-gray-600">Stake: {formatStake(game.stake)}</p>
+                        )}
+                      </div>
+                      <button
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        onClick={() => {
+                          router.push(`/play/${deployment}`);
+                        }}
+                      >
+                        Select
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          {data.settled &&
-            data.settled.length > 0 && ( //List existing Games if in selection stage and previous deployments exists
-              <div>
-                <p>Settled Games </p>
-                {data.settled.map((deployment: any, index: any) => (
-                  <div className="flex flex-row my-2 " key={index}>
-                    <p>{deployment}</p>
-                    <button
-                      className="outline-2 rounded-[10px] bg-blue-300 w-[100px] ml-4 disabled:bg-gray-300"
-                      onClick={() => {
-                        router.push(`/play/${deployment}`);
-                      }}
+            </div>
+          )}
+          
+          {data.settled && data.settled.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold mb-4">Settled Games</h2>
+              <div className="space-y-3">
+                {data.settled.map((deployment: any, index: any) => {
+                  const game = deploymentData?.find(d => d.address === deployment);
+                  return (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      Select
-                    </button>
-                  </div>
-                ))}
+                      <div className="space-y-1">
+                        <p className="font-medium text-gray-700">{formatAddress(deployment)}</p>
+                        <p className="text-sm text-gray-600">Game Completed</p>
+                      </div>
+                      <button
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        onClick={() => {
+                          router.push(`/play/${deployment}`);
+                        }}
+                      >
+                        Select
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
         </div>
       )}
+      
       <button
-        className="border-2 self-center mt-6 bg-blue-400 disabled:bg-gray-300 rounded-[10px] w-[200px]"
+        className="mt-8 w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors font-medium"
         onClick={() => {
           router.push(`/create`);
         }}

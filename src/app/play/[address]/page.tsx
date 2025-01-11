@@ -1,52 +1,67 @@
 "use client";
 
-import { moves } from "@/app/lib/const";
-import RadioGroup from "@/app/components/RadioGroup";
-import { WalletContext, WalletContextType } from "@/app/context/WalletContext";
-import { useContext, useEffect } from "react";
+import { useContext, useState, useEffect } from "react";
+import { WalletContext, WalletContextType } from "../../context/WalletContext";
+import { TransactionContext, TransactionContextType } from "../../context/TransactionContext";
 import { useRouter } from "next/navigation";
-import { GameContext, GameContextType } from "@/app/context/GameContext";
-import { TransactionContext, TransactionContextType } from "@/app/context/TransactionContext";
+import { moves } from "../../lib/const";
+import RadioGroup from "../../components/RadioGroup";
+import { useInspection } from "../../hooks/useInspection";
+import { useRPSState } from "../../hooks/useRPSState";
+import { useRPSWrite } from "../../hooks/useRPSWrite";
 
-export default function Play({ params }: { params: { address: string } }) {
-  const { isConnected } = useContext(WalletContext) as WalletContextType;
-  const { isTxDisabled } = useContext(TransactionContext) as TransactionContextType;
-  const {
-    gameState,
-    timeLeft,
-    radio,
-    setRadio,
-    handlePlay,
-    handleReveal,
-    handleTimeout,
-    contractData,
-    isFetching,
-  } = useContext(GameContext) as GameContextType;
-
+export default function Play({ params: { address } }: { params: { address: string } }) {
+  const { address: walletAddress, isConnected } = useContext(WalletContext) as WalletContextType;
+  const { pendingTx, setPendingTx } = useContext(TransactionContext) as TransactionContextType;
+  const [radio, setRadio] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (!isConnected) router.push("/");
-  }, [isConnected]);
+    setMounted(true);
+  }, []);
 
-  // Determine if game is in an active state
-  const isGameActive = !gameState.isEnded && !gameState.winner;
+  const { gameState, timeLeft, contractData, isFetching } = useRPSState(
+    address as `0x${string}`,
+    walletAddress as `0x${string}`
+  );
 
-  // Format address for display
+  const { handlePlay, handleReveal, handleTimeout } = useRPSWrite(
+    address as `0x${string}`,
+    walletAddress as `0x${string}`,
+    setPendingTx
+  );
+
+  const { isInspecting, result: inspectionResult } = useInspection(address, gameState.isEnded);
+
+  // Only check connection after component is mounted
+  if (mounted && !isConnected) {
+    router.push("/");
+    return null;
+  }
+
+  // Don't render anything until after mounting to prevent hydration errors
+  if (!mounted) {
+    return null;
+  }
+
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  // Get game state message
   const getGameStateMessage = () => {
-    if (isFetching) return "Loading game state...";
-    if (gameState.winner) {
-      return gameState.winner === "tie"
-        ? "Game ended in a tie!"
-        : `Winner: ${formatAddress(gameState.winner)}`;
+    if (gameState.isEnded) {
+      if (isInspecting) return "Checking game results...";
+      if (inspectionResult.winner === "tie") return "Game ended in a tie!";
+      if (inspectionResult.isTimeout) {
+        if (inspectionResult.winner.toLowerCase() === walletAddress?.toLowerCase()) return "You won by timeout!";
+        return "You lost by timeout!";
+      }
+      if (inspectionResult.winner.toLowerCase() === walletAddress?.toLowerCase()) return "You won!";
+      if (inspectionResult.winner) return "You lost!";
+      return "Game ended";
     }
-    if (gameState.isEnded) return "Game has ended";
-    if (!contractData?.j2) return "Waiting for Player 2 to join...";
+    if (gameState.timeout) return "Game has timed out!";
     if (gameState.isCreator) {
       if (!gameState.c2) return "Waiting for Player 2 to play...";
       if (gameState.c1 && gameState.c2) return "Your turn to reveal!";
@@ -57,169 +72,153 @@ export default function Play({ params }: { params: { address: string } }) {
     }
   };
 
-  if (isFetching) {
-    return (
-      <div className="flex flex-col items-center w-full max-w-2xl mx-auto p-4">
-        <div className="w-full flex justify-start mb-6">
-          <button
-            onClick={() => router.push("/")}
-            className="text-blue-500 hover:text-blue-700"
-          >
-            <u>{"<"} Go Back</u>
-          </button>
-        </div>
-        <div className="flex flex-col items-center gap-4">
-          <div className="text-2xl font-semibold">Loading game state...</div>
-          <div className="animate-pulse bg-gray-200 rounded-lg w-full max-w-md h-48"></div>
-        </div>
-      </div>
-    );
-  }
+  const LoadingSpinner = () => (
+    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  );
+
+  const isTxDisabled = !!pendingTx;
+
+  const onPlay = async () => {
+    if (contractData?.stake) {
+      await handlePlay(radio, contractData.stake);
+    }
+  };
+
+  const onReveal = async () => {
+    await handleReveal();
+  };
+
+  const onTimeout = async () => {
+    await handleTimeout(!!gameState.c2);
+  };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-2xl mx-auto p-4">
-      <div className="w-full flex justify-start mb-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
         <button
           onClick={() => router.push("/")}
-          className="text-blue-500 hover:text-blue-700"
+          className="mb-4 text-blue-500 hover:text-blue-700"
         >
-          <u>{"<"} Go Back</u>
+          ← Back to Home
         </button>
-      </div>
 
-      <div className="w-full flex flex-col items-center gap-6">
-        {/* Game Status */}
-        <div className="text-2xl font-semibold text-center">
-          {getGameStateMessage()}
-        </div>
+        <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold mb-6">Rock Paper Scissors Game</h1>
 
-        {/* Game Info */}
-        <div className="w-full max-w-md bg-gray-50 rounded-lg p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          {/* Game Info Section */}
+          <div className="mb-6 space-y-2">
             <div className="text-gray-600">Game Contract:</div>
-            <div className="font-medium">{formatAddress(params.address)}</div>
-            
-            <div className="text-gray-600">Player 1:</div>
+            <div className="font-medium">{formatAddress(address)}</div>
+
+            <div className="text-gray-600">Player 1 (Creator):</div>
             <div className="font-medium">
-              {contractData?.j1 ? formatAddress(contractData.j1.toString()) : "..."}
-              {gameState.isCreator && " (You)"}
+              {contractData?.j1 ? formatAddress(contractData.j1) : "..."}
+              {contractData?.j1 && walletAddress && 
+                contractData.j1.toLowerCase() === walletAddress.toLowerCase() && " (You)"}
             </div>
-            
+
             <div className="text-gray-600">Player 2:</div>
             <div className="font-medium">
-              {contractData?.j2 ? formatAddress(contractData.j2.toString()) : "..."}
-              {!gameState.isCreator && " (You)"}
-            </div>
+              {contractData?.j2 ? formatAddress(contractData.j2) : "..."}
+              {contractData?.j2 && walletAddress && 
+                contractData.j2.toLowerCase() === walletAddress.toLowerCase() && " (You)"}
+              </div>
 
             <div className="text-gray-600">Stake:</div>
             <div className="font-medium">
               {contractData?.stake ? 
-                `${BigInt(contractData.stake.toString().padStart(19, '0').slice(0, -18)).toString()}.${contractData.stake.toString().padStart(19, '0').slice(-18).replace(/0+$/, '')} ETH` 
+                `${contractData.stake.toString().padStart(19, '0').slice(0, -18)}.${contractData.stake.toString().padStart(19, '0').slice(-18).replace(/0+$/, '')} ETH` 
                 : "..."
               }
             </div>
 
-            {gameState.c2 && (
-              <>
-                <div className="text-gray-600">Player 2 Move:</div>
-                <div className="font-medium">{moves[Number(gameState.c2) - 1]}</div>
-              </>
-            )}
-
             {/* Show player 1's move if they are the creator and have played */}
-            {gameState.isCreator && gameState.c1 && !gameState.winner && (
+            {gameState.isCreator && gameState.c1 && (
               <>
                 <div className="text-gray-600">Your Move:</div>
                 <div className="font-medium">{moves[Number(gameState.c1) - 1]}</div>
               </>
             )}
 
-            {gameState.c1 && gameState.winner && (
+            {!gameState.isCreator && gameState.isEnded && inspectionResult.moveRevealed && inspectionResult.c1 && (
               <>
-                <div className="text-gray-600">Player 1 Move:</div>
-                <div className="font-medium">{moves[Number(gameState.c1) - 1]}</div>
+                <div className="text-gray-600">Player 1&#39;s Move:</div>
+                <div className="font-medium">{moves[Number(inspectionResult.c1) - 1]}</div>
+              </>
+            )}
+
+            {gameState.c2 && (
+              <>
+                <div className="text-gray-600">Player 2&#39;s Move:</div>
+                <div className="font-medium">{moves[Number(gameState.c2) - 1]}</div>
               </>
             )}
           </div>
-        </div>
 
-        {/* Timer - Only show if game is active */}
-        {isGameActive && timeLeft > 0 && (
-          <div className="text-lg">
-            Time remaining: <span className="font-medium">{timeLeft}s</span>
-          </div>
-        )}
+          {/* Game Status */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold mb-2">Game Status</h2>
+            <p className="text-gray-700">{getGameStateMessage()}</p>
+            {timeLeft > 0 && !gameState.isEnded && (
+              <p className="text-sm text-gray-500 mt-1">
+                Time remaining: {Math.floor(timeLeft / 60)}:
+                {(timeLeft % 60).toString().padStart(2, "0")}
+              </p>
+            )}
+            {gameState.timeout && !gameState.isEnded && (
+              <p className="text-red-500 mt-1">
+                Game has timed out! Click the button below to claim your stake.
+              </p>
+            )}
+            </div>
 
-        {/* Timeout Warning - Only show if game is active */}
-        {isGameActive && gameState.timeout && (
-          <div className="text-red-500 font-medium">Game has timed out!</div>
-        )}
-
-        {/* Game Actions - Only show if game is active and not fetching */}
-        {isGameActive && !isFetching && (
-          <div className="flex flex-col items-center gap-6 w-full max-w-md">
-            {/* Show options when it's player's turn to play */}
-            {(gameState.isCreator && !gameState.c1 && gameState.c2) || 
-             (!gameState.isCreator && !gameState.c2) ? (
-              <>
-                <div className="text-lg font-medium text-center">
-                  Choose your move:
-                </div>
-                <RadioGroup radio={radio} setRadio={setRadio} />
-              </>
-            ) : null}
-
-            <div className="flex flex-col items-center gap-4 w-full">
-              {gameState.isCreator ? (
-                gameState.c2 ? (
-                  !gameState.c1 ? (
+          {/* Game Actions */}
+          {!gameState.isEnded && (
+            <div className="space-y-4">
+              {!gameState.timeout && (
+                <>
+                  {(!gameState.isCreator && !gameState.c2) ||
+                  (gameState.isCreator && !gameState.c1) ? (
+                    <>
+                      <RadioGroup radio={radio} setRadio={setRadio} />
+                      <button
+                        onClick={onPlay}
+                        disabled={isTxDisabled || isFetching}
+                        className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:bg-gray-400 flex items-center justify-center"
+                      >
+                        {(isTxDisabled || isFetching) && <LoadingSpinner />}
+                        {isTxDisabled ? "Transaction in progress..." : isFetching ? "Loading..." : "Play Move"}
+                      </button>
+                    </>
+                  ) : gameState.isCreator && gameState.c2 ? (
                     <button
-                      onClick={() => handlePlay()}
-                      disabled={isTxDisabled}
-                      className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px]"
+                      onClick={onReveal}
+                      disabled={isTxDisabled || isFetching}
+                      className="w-full bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 disabled:bg-gray-400 flex items-center justify-center"
                     >
-                      {isTxDisabled ? "Processing..." : "Play Move"}
+                      {(isTxDisabled || isFetching) && <LoadingSpinner />}
+                      {isTxDisabled ? "Transaction in progress..." : isFetching ? "Loading..." : "Reveal Move"}
                     </button>
-                  ) : (
-                    <button
-                      onClick={handleReveal}
-                      disabled={isTxDisabled}
-                      className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px]"
-                    >
-                      {isTxDisabled ? "Processing..." : "Reveal Move"}
-                    </button>
-                  )
-                ) : (
-                  <div className="text-gray-600 font-medium text-center">
-                    Waiting for Player 2 to play...
-                  </div>
-                )
-              ) : !gameState.c2 ? (
-                <button
-                  onClick={() => handlePlay()}
-                  disabled={isTxDisabled}
-                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px]"
-                >
-                  {isTxDisabled ? "Processing..." : "Play Move"}
-                </button>
-              ) : (
-                <div className="text-gray-600 font-medium text-center">
-                  Waiting for Player 1 to reveal...
-                </div>
+                  ) : null}
+                </>
               )}
 
               {gameState.timeout && (
                 <button
-                  onClick={handleTimeout}
-                  disabled={isTxDisabled}
-                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors w-full max-w-[200px] mt-4"
+                  onClick={onTimeout}
+                  disabled={isTxDisabled || isFetching}
+                  className="w-full bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 disabled:bg-gray-400 flex items-center justify-center"
                 >
-                  {isTxDisabled ? "Processing..." : "Claim Timeout"}
+                  {(isTxDisabled || isFetching) && <LoadingSpinner />}
+                  {isTxDisabled ? "Transaction in progress..." : isFetching ? "Loading..." : "Claim Timeout"}
                 </button>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
