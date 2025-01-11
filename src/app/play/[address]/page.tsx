@@ -1,7 +1,6 @@
 "use client";
 
 import { useContext, useState, useEffect } from "react";
-import { WalletContext, WalletContextType } from "../../context/WalletContext";
 import { TransactionContext, TransactionContextType } from "../../context/TransactionContext";
 import { useRouter } from "next/navigation";
 import { moves } from "../../lib/const";
@@ -9,13 +8,15 @@ import RadioGroup from "../../components/RadioGroup";
 import { useInspection } from "../../hooks/useInspection";
 import { useRPSState } from "../../hooks/useRPSState";
 import { useRPSWrite } from "../../hooks/useRPSWrite";
+import { useAccount } from "wagmi";
 
 export default function Play({ params: { address } }: { params: { address: string } }) {
-  const { address: walletAddress, isConnected } = useContext(WalletContext) as WalletContextType;
+  const { address: walletAddress, isConnected } = useAccount();
   const { pendingTx, setPendingTx } = useContext(TransactionContext) as TransactionContextType;
   const [radio, setRadio] = useState(0);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -82,18 +83,39 @@ export default function Play({ params: { address } }: { params: { address: strin
   const isTxDisabled = !!pendingTx;
 
   const onPlay = async () => {
-    if (contractData?.stake) {
-      await handlePlay(radio, contractData.stake);
+    if (contractData?.stake && !isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        await handlePlay(radio, contractData.stake);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const onReveal = async () => {
-    await handleReveal();
+    if (!isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        await handleReveal();
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   const onTimeout = async () => {
-    await handleTimeout(!!gameState.c2);
+    if (!isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        await handleTimeout(!!gameState.c2);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
+
+  const isButtonDisabled = isTxDisabled || isFetching || isSubmitting;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,7 +128,7 @@ export default function Play({ params: { address } }: { params: { address: strin
         </button>
 
         <div className="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Rock Paper Scissors Game</h1>
+          <h1 className="text-2xl font-bold mb-6">Rock Paper Scissors Lizard Spock</h1>
 
           {/* Game Info Section */}
           <div className="mb-6 space-y-2">
@@ -186,21 +208,21 @@ export default function Play({ params: { address } }: { params: { address: strin
                       <RadioGroup radio={radio} setRadio={setRadio} />
                       <button
                         onClick={onPlay}
-                        disabled={isTxDisabled || isFetching}
+                        disabled={isButtonDisabled}
                         className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:bg-gray-400 flex items-center justify-center"
                       >
-                        {(isTxDisabled || isFetching) && <LoadingSpinner />}
-                        {isTxDisabled ? "Transaction in progress..." : isFetching ? "Loading..." : "Play Move"}
+                        {(isButtonDisabled) && <LoadingSpinner />}
+                        {isTxDisabled ? "Transaction in progress..." : isSubmitting ? "Submitting..." : isFetching ? "Loading..." : "Play Move"}
                       </button>
                     </>
                   ) : gameState.isCreator && gameState.c2 ? (
                     <button
                       onClick={onReveal}
-                      disabled={isTxDisabled || isFetching}
+                      disabled={isButtonDisabled}
                       className="w-full bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 disabled:bg-gray-400 flex items-center justify-center"
                     >
-                      {(isTxDisabled || isFetching) && <LoadingSpinner />}
-                      {isTxDisabled ? "Transaction in progress..." : isFetching ? "Loading..." : "Reveal Move"}
+                      {(isButtonDisabled) && <LoadingSpinner />}
+                      {isTxDisabled ? "Transaction in progress..." : isSubmitting ? "Submitting..." : isFetching ? "Loading..." : "Reveal Move"}
                     </button>
                   ) : null}
                 </>
@@ -209,11 +231,11 @@ export default function Play({ params: { address } }: { params: { address: strin
               {gameState.timeout && (
                 <button
                   onClick={onTimeout}
-                  disabled={isTxDisabled || isFetching}
+                  disabled={isButtonDisabled}
                   className="w-full bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600 disabled:bg-gray-400 flex items-center justify-center"
                 >
-                  {(isTxDisabled || isFetching) && <LoadingSpinner />}
-                  {isTxDisabled ? "Transaction in progress..." : isFetching ? "Loading..." : "Claim Timeout"}
+                  {(isButtonDisabled) && <LoadingSpinner />}
+                  {isTxDisabled ? "Transaction in progress..." : isSubmitting ? "Submitting..." : isFetching ? "Loading..." : "Claim Timeout"}
                 </button>
               )}
             </div>

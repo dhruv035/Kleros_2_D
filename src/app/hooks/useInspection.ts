@@ -1,11 +1,11 @@
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { inspectContract, InspectionResult } from "../services/inspectionService";
-import { WalletContext, WalletContextType } from "../context/WalletContext";
+import { usePublicClient } from "wagmi";
 
 export const useInspection = (address: string | undefined, isGameClosed: boolean) => {
   const [isInspecting, setIsInspecting] = useState(false);
   const [result, setResult] = useState<InspectionResult>({ isEnded: false, winner: "" });
-  const { publicClient } = useContext(WalletContext) as WalletContextType;
+  const publicClient = usePublicClient();
 
   useEffect(() => {
     if (!address || !isGameClosed || !publicClient) return;

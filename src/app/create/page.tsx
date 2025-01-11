@@ -15,10 +15,9 @@ import {
   TransactionContext,
   TransactionContextType,
 } from "../context/TransactionContext";
-import { WalletContext, WalletContextType } from "../context/WalletContext";
 import { sepolia } from "viem/chains";
 import { commitValidation } from "../utils/validations";
-import { useReconnect } from "wagmi";
+import { useReconnect, useAccount, usePublicClient, useWalletClient, useBalance } from "wagmi";
 import { useRouter } from "next/navigation";
 import { moves } from "../lib/const";
 
@@ -38,9 +37,12 @@ export default function Create() {
   });
 
   const [localDisable, setLocalDisable] = useState<boolean>(false);
-  const { client, publicClient, balance, address } = useContext(
-    WalletContext
-  ) as WalletContextType;
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
+  const { data: balance } = useBalance({
+    address: address,
+  });
   const { isTxDisabled, pendingTx, setPendingTx, setIsTxDisabled } = useContext(
     TransactionContext
   ) as TransactionContextType;
@@ -65,70 +67,91 @@ export default function Create() {
   }, [address]);
 
   const handleCommit = async () => {
-    if (client?.chain?.id !== 11155111 || !address || !publicClient) {
+    if (localDisable) return;
+    if (walletClient?.chain?.id !== 11155111 || !address || !publicClient) {
       alert("Web3 Provider Error");
       return;
     }
-    const isValidated = commitValidation(
-      formState.radio,
-      balance,
-      formState.stake,
-      formState.target,
-      address as string
-    );
-
-    if (!isValidated) return;
-    let signature;
-    try {
-      signature = await client?.signMessage({
-        account: address,
-        message: Buffer.from(crypto.randomUUID()).toString("base64"),
-      });
-    } catch (error) {
+    if (!balance) {
+      alert("Cannot fetch your balance");
       return;
     }
-
-    const salt = hexToBigInt(hashMessage(signature));
-    const c1Hash = keccak256(
-      encodePacked(["uint8", "uint256"], [formState.radio, salt])
-    );
-    const txNonce = await publicClient.getTransactionCount({
-      address: address,
-    });
-    const deployAddress = getContractAddress({
-      from: address,
-      nonce: BigInt(txNonce),
-    });
-
-    // Save move and update state
-    const moveKey = deployAddress.toLowerCase() + ":" + address.toLowerCase() + ":move:";
-    localStorage.setItem(moveKey, formState.radio.toString());
-    setFormState(prev => ({ ...prev, savedMove: moves[formState.radio - 1] }));
-
-    localStorage.setItem(
-      deployAddress.toLowerCase() + ":" + address.toLowerCase() + ":salt:",
-      salt.toString()
-    );
-    let hash;
+    if (balance.value < parseEther(formState.stake || "0")) {
+      alert("Your stake amount is higher than your balance");
+      return;
+    }
+    setLocalDisable(true);
     try {
-      const txHash = await client?.deployContract({
-        chain: sepolia,
-        abi: contractABI.abi,
-        account: address,
-        args: [c1Hash, formState.target as `0x${string}`],
-        value: parseEther(formState.stake),
-        bytecode: contractABI.bytecode as `0x${string}`,
+      const isValidated = commitValidation(
+        formState.radio,
+        formState.stake,
+        formState.target,
+        address as string
+      );
+
+      if (!isValidated) {
+        setLocalDisable(false);
+        return;
+      }
+
+      let signature;
+      try {
+        signature = await walletClient?.signMessage({
+          message: Buffer.from(crypto.randomUUID()).toString("base64"),
+        });
+      } catch (error) {
+        setLocalDisable(false);
+        return;
+      }
+
+      const salt = hexToBigInt(hashMessage(signature));
+      const c1Hash = keccak256(
+        encodePacked(["uint8", "uint256"], [formState.radio, salt])
+      );
+      const txNonce = await publicClient.getTransactionCount({
+        address: address,
       });
-      hash = txHash;
-    } catch (error) {
+      const deployAddress = getContractAddress({
+        from: address,
+        nonce: BigInt(txNonce),
+      });
+
+      // Save move and update state
+      const moveKey = deployAddress.toLowerCase() + ":" + address.toLowerCase() + ":move:";
+      localStorage.setItem(moveKey, formState.radio.toString());
+      setFormState(prev => ({ ...prev, savedMove: moves[formState.radio - 1] }));
+
+      localStorage.setItem(
+        deployAddress.toLowerCase() + ":" + address.toLowerCase() + ":salt:",
+        salt.toString()
+      );
+      let hash;
+      try {
+        const txHash = await walletClient?.deployContract({
+          chain: sepolia,
+          abi: contractABI.abi,
+          account: address,
+          args: [c1Hash, formState.target as `0x${string}`],
+          value: parseEther(formState.stake),
+          bytecode: contractABI.bytecode as `0x${string}`,
+        });
+        hash = txHash;
+      } catch (error) {
+        setIsTxDisabled(false);
+        setLocalDisable(false);
+        return;
+      }
+
+      if (!hash) {
+        setLocalDisable(false);
+        return;
+      }
+      localStorage.setItem("pendingTx", hash as string);
       setIsTxDisabled(false);
-      return;
+      setPendingTx(hash);
+    } catch (error) {
+      setLocalDisable(false);
     }
-
-    if (!hash) return;
-    localStorage.setItem("pendingTx", hash as string);
-    setIsTxDisabled(false);
-    setPendingTx(hash);
   };
 
   const { reconnect } = useReconnect();
@@ -137,6 +160,13 @@ export default function Create() {
     //Wagmi reconnect wallet
     reconnect();
   }, []);
+
+  const LoadingSpinner = () => (
+    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  );
 
   return (
     <div className="flex flex-col items-center w-full max-w-2xl mx-auto p-4">
@@ -151,7 +181,7 @@ export default function Create() {
 
       <div className="w-full flex flex-col items-center gap-6">
         <div className="text-2xl font-semibold text-center">
-          Create New Game
+          Create New Game of Rock Paper Scissors Lizard Spock
         </div>
 
         <div className="w-full max-w-md bg-gray-50 rounded-lg p-6 space-y-6">
@@ -210,10 +240,11 @@ export default function Create() {
 
               <button
                 onClick={handleCommit}
-                disabled={isTxDisabled}
-                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={isTxDisabled || localDisable}
+                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                {isTxDisabled ? "Processing..." : "Create Game"}
+                {(isTxDisabled || localDisable) && <LoadingSpinner />}
+                {isTxDisabled ? "Transaction in progress..." : localDisable ? "Preparing transaction..." : "Create Game"}
               </button>
             </div>
           )}

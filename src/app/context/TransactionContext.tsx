@@ -13,10 +13,8 @@ import {
 import { addDeployment } from "../actions/front-end/deployments";
 
 import { waitForTransactionReceipt } from "viem/actions";
-import { WalletContext, WalletContextType } from "./WalletContext";
 import { useRouter } from "next/navigation";
-import { Alchemy, Network } from "alchemy-sdk";
-//Global contexts may be persisted and managed here
+import { usePublicClient } from "wagmi";
 
 export type TransactionContextType = {
   isTxDisabled: boolean;
@@ -43,7 +41,7 @@ export const TransactionContext = createContext<TransactionContextType | null>(
 );
 
 const TransactionProvider = ({ children }: { children: ReactNode }) => {
-  const { publicClient } = useContext(WalletContext) as WalletContextType;
+  const publicClient = usePublicClient();
   const [pendingTx, setPendingTx] = useState<`0x${string}` | undefined>();
   const [isTxDisabled, setIsTxDisabled] = useState<boolean>(false);
 

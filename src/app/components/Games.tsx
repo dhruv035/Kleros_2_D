@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { WalletContext, WalletContextType } from "../context/WalletContext";
+import { useAccount, usePublicClient } from "wagmi";
 import contractABI from "../lib/abi/contractabi.json";
 import { loadDeployments } from "../actions/front-end/deployments";
 
@@ -15,43 +15,18 @@ type DeploymentData = {
 
 export default function Games({ initialDeployments }: { initialDeployments: string[] }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [deployments, setDeployments] = useState<string[]>(initialDeployments);
   const [deploymentData, setDeploymentData] = useState<DeploymentData[] | null>();
-  const { address, publicClient } = useContext(WalletContext) as WalletContextType;
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
 
   const refreshDeployments = useCallback(async () => {
     const data = await loadDeployments();
     setDeployments(data ?? []);
   }, []);
 
-  useEffect(() => {
-    // Refresh deployments when component mounts or when user navigates back
-    const handleFocus = () => {
-      refreshDeployments();
-    };
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [refreshDeployments]);
-
-  const data = useMemo(() => {
-    if (!deploymentData || !address) return;
-    const settled: string[] = [];
-    const ongoing: string[] = [];
-    deploymentData.forEach((deployment) => {
-      if (deployment.j1 === address || deployment.j2 === address)
-        if (deployment.stake === 0) settled.push(deployment.address);
-        else ongoing.push(deployment.address);
-    });
-    return { settled, ongoing };
-  }, [address, deploymentData]);
-
-  useEffect(() => {
-    updateDeploymentData();
-  }, [deployments]);
-
-  const updateDeploymentData = async () => {
+  const updateDeploymentData = useCallback(async () => {
     if (!publicClient) return;
 
     const data: DeploymentData[] = await Promise.all(
@@ -75,6 +50,7 @@ export default function Games({ initialDeployments }: { initialDeployments: stri
               functionName: "stake",
             });
           } catch (error) {
+            console.error('Error fetching contract data:', error);
             (j2 = ""), (j1 = ""), (stake = 0);
           }
 
@@ -89,7 +65,48 @@ export default function Games({ initialDeployments }: { initialDeployments: stri
       })
     );
     setDeploymentData(data);
-  };
+  }, [publicClient, deployments]);
+
+  useEffect(() => {
+    // Refresh deployments when component mounts or when user navigates back
+    const handleFocus = () => {
+      refreshDeployments();
+    };
+
+    // Listen for window focus events
+    window.addEventListener('focus', handleFocus);
+
+    // Initial load
+    refreshDeployments();
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [refreshDeployments]);
+
+  // Refresh when pathname changes to '/' (home)
+  useEffect(() => {
+    if (pathname === '/') {
+      refreshDeployments();
+    }
+  }, [pathname, refreshDeployments]);
+
+  useEffect(() => {
+    if (!publicClient || !deployments.length) return;
+    updateDeploymentData();
+  }, [deployments, publicClient, updateDeploymentData]);
+
+  const data = useMemo(() => {
+    if (!deploymentData || !address) return;
+    const settled: string[] = [];
+    const ongoing: string[] = [];
+    deploymentData.forEach((deployment) => {
+      if (deployment.j1.toLowerCase() === address.toLowerCase() || deployment.j2.toLowerCase() === address.toLowerCase())
+        if (deployment.stake === 0) settled.push(deployment.address);
+        else ongoing.push(deployment.address);
+    });
+    return { settled, ongoing };
+  }, [address, deploymentData]);
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -101,7 +118,7 @@ export default function Games({ initialDeployments }: { initialDeployments: stri
 
   return (
     <div className="flex flex-col max-w-2xl mx-auto w-full">
-      {data && (
+      {data ? (
         <div className="space-y-8">
           {data.ongoing && data.ongoing.length > 0 && (
             <div className="bg-white rounded-lg shadow-md p-6">
@@ -164,6 +181,10 @@ export default function Games({ initialDeployments }: { initialDeployments: stri
               </div>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full">
+          <p className="text-gray-500">Loading games...</p>
         </div>
       )}
       

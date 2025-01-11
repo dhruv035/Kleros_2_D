@@ -117,20 +117,34 @@ export const useRPSState = (
 
   // Update timeout state based on lastAction
   useEffect(() => {
-    if (!contractData || !contractData.lastAction || contractData.isGameClosed) return;
+    if (!contractData || !contractData.lastAction || contractData.isGameClosed) {
+      setTimeLeft(-1);
+      return;
+    }
     
-    const currentTime = Math.floor(Date.now() / 1000);
-    const lastActionTime = Number(contractData.lastAction);
-    const timeRemaining = lastActionTime + 300 - currentTime;
-    
-    setTimeLeft(timeRemaining);
-    setGameState(prevState => ({
-      ...prevState,
-      timeout: timeRemaining <= 0
-    }));
-  }, [contractData?.lastAction, contractData?.isGameClosed]);
+    // Update timer immediately
+    const updateTimer = () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const lastActionTime = Number(contractData.lastAction);
+      const timeRemaining = lastActionTime + 300 - currentTime;
+      
+      setTimeLeft(timeRemaining);
+      setGameState(prevState => ({
+        ...prevState,
+        timeout: timeRemaining <= 0
+      }));
+    };
 
-  // Update timer
+    // Initial update
+    updateTimer();
+
+    // Update every second
+    const interval = setInterval(updateTimer, 1000);
+    
+    return () => clearInterval(interval);
+  }, [contractData?.lastAction, contractData?.isGameClosed, blockNumber]);
+
+  // Remove the old timer effect since we've integrated it above
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (timeLeft > 0) {
